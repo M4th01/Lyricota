@@ -104,6 +104,20 @@ class Settings(context: Context) {
         get() = prefs.getBoolean("onboarding_done", false)
         set(v) = prefs.edit().putBoolean("onboarding_done", v).apply()
 
+    /** Buscar actualizaciones en GitHub al abrir la app. */
+    var checkUpdates: Boolean
+        get() = prefs.getBoolean("check_updates", true)
+        set(v) = prefs.edit().putBoolean("check_updates", v).apply()
+
+    var lastUpdateCheck: Long
+        get() = prefs.getLong("last_update_check", 0L)
+        set(v) = prefs.edit().putLong("last_update_check", v).apply()
+
+    /** Versión que el usuario pidió no volver a avisar. */
+    var skippedVersion: String?
+        get() = prefs.getString("skipped_version", null)
+        set(v) = prefs.edit().putString("skipped_version", v).apply()
+
     var sort: SortMode
         get() = enumOr(prefs.getString("sort", null), SortMode.TITLE)
         set(v) = prefs.edit().putString("sort", v.name).apply()

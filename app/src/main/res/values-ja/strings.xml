@@ -265,6 +265,25 @@
     <string name="about_support_body">Lyricota は無料・オープンソースで広告もありません。役に立ったら Ko-fi でコーヒーをご馳走してください。</string>
     <string name="kofi_button">コーヒーをおごる</string>
     <string name="about_privacy">プライバシー</string>
-    <string name="about_privacy_body">Lyricota にはアカウント・広告・解析・トラッカーはありません。上記のソースにのみ接続し、検索する曲のタイトル・アーティスト・アルバム・長さだけを送信します。設定とライブラリのキャッシュは端末内に保存されます。</string>
+    <string name="about_privacy_body">Lyricota にはアカウント・広告・解析・トラッカーはありません。上記のソースにのみ接続し、検索する曲のタイトル・アーティスト・アルバム・長さだけを送信します。また新しいバージョンの確認のため GitHub に接続します（設定でオフにできます）。設定とライブラリのキャッシュは端末内に保存されます。</string>
     <string name="about_lib_lddc">QRC 復号と QQ Music・Kugou・NetEase の歌詞 API の参考実装。Lyricota が GPL-3.0 である理由です。</string>
+    <string name="update_title">アップデートがあります</string>
+    <string name="update_body">Lyricota %1$s が利用できます（現在 %2$s）。</string>
+    <string name="update_size">APK · %1$s MB</string>
+    <string name="update_download">ダウンロードしてインストール</string>
+    <string name="update_install">インストール</string>
+    <string name="update_later">後で</string>
+    <string name="update_skip">このバージョンをスキップ</string>
+    <string name="update_open_page">GitHub で開く</string>
+    <string name="update_downloading">ダウンロード中… %1$d%%</string>
+    <string name="update_install_hint">Android が確認を求めます。設定とライブラリはそのまま残ります。</string>
+    <string name="update_check_now">今すぐアップデートを確認</string>
+    <string name="update_checking">確認中…</string>
+    <string name="settings_updates">アップデート</string>
+    <string name="setting_check_updates">アップデートを確認</string>
+    <string name="setting_check_updates_hint">アプリを開いたとき（1 日 2 回まで）GitHub で最新バージョンを確認します。あなたに関する情報は送信されません。</string>
+    <string name="msg_update_latest">最新バージョンです（%1$s）</string>
+    <string name="msg_update_error">アップデートを確認できませんでした</string>
+    <string name="msg_update_failed">アップデートのダウンロードに失敗しました</string>
+    <string name="msg_update_allow">Lyricota にアプリのインストールを許可してから、戻って「インストール」をタップしてください</string>
 </resources>

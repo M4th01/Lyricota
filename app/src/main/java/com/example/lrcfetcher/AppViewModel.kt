@@ -36,6 +36,8 @@ import com.example.lrcfetcher.lyrics.TextMode
 import com.example.lrcfetcher.lyrics.TrackQuery
 import com.example.lrcfetcher.romanization.JapaneseRomanizer
 import com.example.lrcfetcher.romanization.Romanizer
+import com.example.lrcfetcher.update.UpdateChecker
+import com.example.lrcfetcher.update.UpdateInfo
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -835,4 +837,120 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (batch.running) notifier.finished(batch.copy(running = false))
         BatchNotifier.onCancel = null
     }
+
+    // ================================================================= actualizaciones
+    /** Versión nueva disponible (se muestra el diálogo mientras no sea null). */
+    var update by mutableStateOf<UpdateInfo?>(null)
+        private set
+    /** Progreso de la descarga (0..1); null si no se está descargando. */
+    var updateProgress by mutableStateOf<Float?>(null)
+        private set
+    /** El APK ya está descargado y se puede instalar. */
+    var updateReady by mutableStateOf(false)
+        private set
+    var checkingUpdate by mutableStateOf(false)
+        private set
+    private var updateJob: Job? = null
+
+    private val updatesDir get() = java.io.File(getApplication<Application>().cacheDir, "updates")
+    private fun apkFile(info: UpdateInfo) = java.io.File(updatesDir, "Lyricota-${info.version}.apk")
+
+    /**
+     * Consulta la última Release de GitHub. Automática: como mucho cada 12 h y respetando
+     * "omitir esta versión"; manual: siempre, y avisa también si ya está al día.
+     */
+    fun checkForUpdates(manual: Boolean) {
+        if (checkingUpdate || updateProgress != null) return
+        val now = System.currentTimeMillis()
+        if (!manual && (!settings.checkUpdates || now - settings.lastUpdateCheck < 12 * 3600_000L)) return
+        checkingUpdate = true
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                // APKs de actualizaciones ya instaladas.
+                updatesDir.listFiles()?.forEach { f ->
+                    val v = f.name.removePrefix("Lyricota-").substringBefore(".apk")
+                    if (!UpdateChecker.isNewer(v, BuildConfig.VERSION_NAME)) f.delete()
+                }
+                runCatching { UpdateChecker.fetchLatest() }
+            }
+            checkingUpdate = false
+            val info = result.getOrNull()
+            if (result.isSuccess) settings.lastUpdateCheck = now
+            when {
+                info != null && UpdateChecker.isNewer(info.version, BuildConfig.VERSION_NAME) &&
+                    (manual || info.version != settings.skippedVersion) -> {
+                    update = info
+                    updateReady = apkFile(info).exists()
+                }
+                !manual -> Unit
+                result.isFailure -> message = UiText(R.string.msg_update_error)
+                else -> message = UiText(R.string.msg_update_latest, BuildConfig.VERSION_NAME)
+            }
+        }
+    }
+
+    /** Descarga el APK de la versión nueva y abre el instalador. */
+    fun downloadUpdate() {
+        val info = update ?: return
+        val url = info.apkUrl ?: return
+        if (updateReady) { installUpdate(); return }
+        if (updateProgress != null) return
+        updateProgress = 0f
+        updateJob = viewModelScope.launch {
+            val file = apkFile(info)
+            val r = withContext(Dispatchers.IO) {
+                runCatching {
+                    updatesDir.mkdirs()
+                    var shown = -1
+                    UpdateChecker.download(url, file) { p ->
+                        if (updateJob?.isActive == false) throw java.io.IOException("cancelled")
+                        val pct = (p * 100).toInt()
+                        if (pct != shown) { shown = pct; viewModelScope.launch { updateProgress = p } }
+                    }
+                }
+            }
+            updateProgress = null
+            r.onSuccess { updateReady = true; installUpdate() }
+                .onFailure { if (it !is kotlinx.coroutines.CancellationException) message = UiText(R.string.msg_update_failed) }
+        }
+    }
+
+    /** Abre el instalador de Android (el usuario confirma; se conservan ajustes y biblioteca). */
+    fun installUpdate() {
+        val info = update ?: return
+        val app = getApplication<Application>()
+        val file = apkFile(info)
+        if (!file.exists()) { updateReady = false; return }
+        if (android.os.Build.VERSION.SDK_INT >= 26 && !app.packageManager.canRequestPackageInstalls()) {
+            // Android pide permitir "instalar apps desconocidas" a Lyricota una sola vez.
+            message = UiText(R.string.msg_update_allow)
+            runCatching {
+                app.startActivity(
+                    Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${app.packageName}"))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            }
+            return
+        }
+        val uri = androidx.core.content.FileProvider.getUriForFile(app, "${app.packageName}.updates", file)
+        runCatching {
+            app.startActivity(
+                Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+        }.onFailure { message = UiText(R.string.msg_update_failed) }
+    }
+
+    fun skipUpdate() {
+        update?.let { settings.skippedVersion = it.version }
+        dismissUpdate()
+    }
+
+    fun dismissUpdate() {
+        updateJob?.cancel()
+        updateProgress = null
+        update = null
+    }
+
+    fun updateCheckUpdates(on: Boolean) { settings.checkUpdates = on }
 }

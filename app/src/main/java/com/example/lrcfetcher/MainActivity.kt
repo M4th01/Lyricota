@@ -133,6 +133,10 @@ private fun AppContent(vm: AppViewModel, onLanguage: (AppLanguage) -> Unit) {
         snackbar.showSnackbar(m.resolve(context))
     }
 
+    // Aviso de actualización (como mucho cada 12 h), después del tutorial.
+    LaunchedEffect(tutorialOpen) { if (!tutorialOpen) vm.checkForUpdates(manual = false) }
+    vm.update?.let { if (!tutorialOpen) com.example.lrcfetcher.ui.UpdateDialog(vm, it) }
+
     if (tutorialOpen) {
         OnboardingScreen(
             folderChosen = vm.folderUri != null,

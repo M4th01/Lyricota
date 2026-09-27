@@ -37,6 +37,7 @@
 - Fast, incremental library scan: only new or changed songs are read again.
 - Built-in player to check the sync and adjust the offset.
 - First-run tutorial that explains each permission before asking for it.
+- In-app update notice with one-tap download from GitHub Releases.
 - Interface in English, Spanish, Portuguese and Japanese.
 
 Example output:
@@ -51,6 +52,8 @@ Example output:
 
 Get the latest APK from the [Releases](../../releases/latest) page. Requires Android 8.0 or newer.
 
+**Updates:** the app checks this repository's latest release when it opens (at most twice a day; can be turned off in Settings) and offers to download and install the new version. Your settings and library are kept. You can also track releases with [Obtainium](https://github.com/ImranR98/Obtainium).
+
 ## Permissions
 
 | Permission | Why |
@@ -59,6 +62,7 @@ Get the latest APK from the [Releases](../../releases/latest) page. Requires And
 | Notifications (optional, Android 13+) | Show the progress of batch operations and tell you when they finish. |
 | Internet | Search lyrics, metadata and covers. Only the title, artist, album and duration of the song being searched are sent. |
 | Foreground service | Keep a batch running while you use other apps. |
+| Install apps (asked only when you accept an update) | Open Android's installer with the new version downloaded from GitHub Releases. |
 
 Lyricota has no accounts, ads, analytics or trackers.
 

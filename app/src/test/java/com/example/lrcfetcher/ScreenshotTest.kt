@@ -138,6 +138,18 @@ class ScreenshotTest {
     }
 
     @Test
+    @Config(qualifiers = "es-w400dp-h860dp-xhdpi")
+    fun updateDialog() {
+        val vm = vm()
+        val info = com.example.lrcfetcher.update.UpdateInfo(
+            "2.5", "## Lyricota 2.5\n- Aviso de actualización dentro de la app\n- Correcciones", "https://github.com/M4th01/Lyricota/releases/tag/v2.5",
+            "https://x/Lyricota-2.5.apk", 36_611_475,
+        )
+        compose.setContent { LyricotaTheme(false) { com.example.lrcfetcher.ui.UpdateDialog(vm, info) } }
+        compose.onAllNodes(androidx.compose.ui.test.isRoot())[1].captureRoboImage("build/outputs/roborazzi/update_dialog.png")
+    }
+
+    @Test
     fun libraryDark() {
         val vm = vm()
         compose.setContent { LyricotaTheme(true) { LibraryScreen(vm, SnackbarHostState(), {}, {}, {}, {}, {}) } }

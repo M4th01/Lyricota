@@ -83,6 +83,16 @@ fun SettingsSheet(vm: AppViewModel, onLanguage: (AppLanguage) -> Unit, onDismiss
             AppLanguage.entries.forEach { lang ->
                 RadioRow(lang.label(), vm.language == lang) { if (vm.language != lang) onLanguage(lang) }
             }
+
+            Section(stringResource(R.string.settings_updates))
+            var checkUpdates by remember { mutableStateOf(vm.settings.checkUpdates) }
+            SwitchRow(stringResource(R.string.setting_check_updates), stringResource(R.string.setting_check_updates_hint), checkUpdates) {
+                checkUpdates = it
+                vm.updateCheckUpdates(it)
+            }
+            TextButton(onClick = { vm.checkForUpdates(manual = true) }, enabled = !vm.checkingUpdate) {
+                Text(stringResource(if (vm.checkingUpdate) R.string.update_checking else R.string.update_check_now))
+            }
             Spacer(Modifier.height(24.dp))
         }
     }

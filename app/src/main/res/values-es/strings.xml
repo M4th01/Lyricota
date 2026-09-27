@@ -265,6 +265,25 @@
     <string name="about_support_body">Lyricota es gratis, de código abierto y sin anuncios. Si te resulta útil, puedes invitarme un café en Ko-fi.</string>
     <string name="kofi_button">Invítame un cafecito</string>
     <string name="about_privacy">Privacidad</string>
-    <string name="about_privacy_body">Lyricota no tiene cuentas, anuncios, analíticas ni rastreadores. Sólo se conecta a las fuentes de arriba, enviando el título, artista, álbum y duración de la canción que se busca. Tus ajustes y la caché de la biblioteca se quedan en tu dispositivo.</string>
+    <string name="about_privacy_body">Lyricota no tiene cuentas, anuncios, analíticas ni rastreadores. Sólo se conecta a las fuentes de arriba, enviando el título, artista, álbum y duración de la canción que se busca, y a GitHub para buscar versiones nuevas (se puede desactivar en Ajustes). Tus ajustes y la caché de la biblioteca se quedan en tu dispositivo.</string>
     <string name="about_lib_lddc">Referencia para el descifrado QRC y las APIs de letras de QQ Music, Kugou y NetEase. Es la razón por la que Lyricota usa la licencia GPL-3.0.</string>
+    <string name="update_title">Actualización disponible</string>
+    <string name="update_body">Lyricota %1$s está disponible (tienes la %2$s).</string>
+    <string name="update_size">APK · %1$s MB</string>
+    <string name="update_download">Descargar e instalar</string>
+    <string name="update_install">Instalar</string>
+    <string name="update_later">Más tarde</string>
+    <string name="update_skip">Omitir esta versión</string>
+    <string name="update_open_page">Abrir en GitHub</string>
+    <string name="update_downloading">Descargando… %1$d%%</string>
+    <string name="update_install_hint">Android te pedirá confirmar. Se conservan tus ajustes y tu biblioteca.</string>
+    <string name="update_check_now">Buscar actualizaciones ahora</string>
+    <string name="update_checking">Buscando…</string>
+    <string name="settings_updates">Actualizaciones</string>
+    <string name="setting_check_updates">Buscar actualizaciones</string>
+    <string name="setting_check_updates_hint">Al abrir la app (como mucho dos veces al día) consulta en GitHub la última versión. No se envía nada sobre ti.</string>
+    <string name="msg_update_latest">Tienes la última versión (%1$s)</string>
+    <string name="msg_update_error">No se pudo buscar actualizaciones</string>
+    <string name="msg_update_failed">Falló la descarga de la actualización</string>
+    <string name="msg_update_allow">Permite que Lyricota instale apps y luego vuelve y toca Instalar</string>
 </resources>

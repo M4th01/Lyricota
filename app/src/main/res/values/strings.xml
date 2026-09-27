@@ -275,6 +275,25 @@
     <string name="about_support_body">Lyricota is free, open source and has no ads. If it\'s useful to you, you can buy me a coffee on Ko-fi.</string>
     <string name="kofi_button">Buy a small coffee</string>
     <string name="about_privacy">Privacy</string>
-    <string name="about_privacy_body">Lyricota has no accounts, ads, analytics or trackers. It only connects to the sources listed above, sending the title, artist, album and duration of the song being searched. Your settings and library cache stay on your device.</string>
+    <string name="about_privacy_body">Lyricota has no accounts, ads, analytics or trackers. It only connects to the sources listed above, sending the title, artist, album and duration of the song being searched, and to GitHub to check for new versions (can be turned off in Settings). Your settings and library cache stay on your device.</string>
     <string name="about_lib_lddc">Reference for the QRC decryption and for the lyrics APIs of QQ Music, Kugou and NetEase. It is the reason Lyricota is licensed under the GPL-3.0.</string>
+    <string name="update_title">Update available</string>
+    <string name="update_body">Lyricota %1$s is available (you have %2$s).</string>
+    <string name="update_size">APK · %1$s MB</string>
+    <string name="update_download">Download and install</string>
+    <string name="update_install">Install</string>
+    <string name="update_later">Later</string>
+    <string name="update_skip">Skip this version</string>
+    <string name="update_open_page">Open on GitHub</string>
+    <string name="update_downloading">Downloading… %1$d%%</string>
+    <string name="update_install_hint">Android will ask you to confirm. Your settings and library are kept.</string>
+    <string name="update_check_now">Check for updates now</string>
+    <string name="update_checking">Checking…</string>
+    <string name="settings_updates">Updates</string>
+    <string name="setting_check_updates">Check for updates</string>
+    <string name="setting_check_updates_hint">When the app opens (at most twice a day) it asks GitHub for the latest version. Nothing about you is sent.</string>
+    <string name="msg_update_latest">You have the latest version (%1$s)</string>
+    <string name="msg_update_error">Couldn\'t check for updates</string>
+    <string name="msg_update_failed">The update download failed</string>
+    <string name="msg_update_allow">Allow Lyricota to install apps, then come back and tap Install</string>
 </resources>
