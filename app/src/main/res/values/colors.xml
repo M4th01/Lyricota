@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="md_primary">#2F7D4F</color>
+    <color name="app_background">#FAFBFA</color>
+    <color name="md_on_primary">#FFFFFF</color>
+    <color name="md_primary_container">#D9F0E1</color>
+    <color name="md_secondary">#6D9F86</color>
+    <color name="icon_background">#F3F8FB</color>
+</resources>

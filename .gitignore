@@ -1,0 +1,18 @@
+# Gradle / Android Studio
+.gradle/
+build/
+app/build/
+local.properties
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+# Firmas: nunca subir claves
+*.jks
+*.keystore
+keystore.properties
+# APK/AAB compilados: se suben como "Release", no al código
+*.apk
+*.aab
+app/release/
