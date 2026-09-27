@@ -90,6 +90,8 @@ class LyricsSession(val track: Track?, query: TrackQuery, val initial: SongCandi
     var query by mutableStateOf(query)
     val results = mutableStateMapOf<ProviderId, ProviderResult>()
     var selected by mutableStateOf<ProviderId?>(null)
+    /** Última fuente de búsqueda elegida (para volver a ella desde "En la canción"). */
+    var lastSource by mutableStateOf<ProviderId?>(null)
     var userPicked by mutableStateOf(false)
     var offsetMs by mutableStateOf(0L)
     var showRaw by mutableStateOf(false)
@@ -295,7 +297,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         scan = ScanState(running = true)
         try {
             val cached = if (full) emptyMap() else withContext(Dispatchers.IO) { cache.load(uri) }
-            val listing = scanner.list(uri)
+            val listing = scanner.list(uri, settings.skipNoMedia)
             val (ready, pending) = withContext(Dispatchers.Default) { scanner.diff(uri, listing, cached) }
             val present = HashSet<String>(ready.size + pending.size).apply { ready.forEach { add(it.uri) }; pending.forEach { add(it.uri) } }
             val removed = cached.keys.count { it !in present }
@@ -478,6 +480,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val providers = enabledProviders
         providers.forEach { session.results[it] = ProviderResult.Loading }
         session.job = viewModelScope.launch {
+            // La letra que ya tiene la canción se muestra aunque ninguna fuente la encuentre.
+            val track = session.track
+            val tree = folderUri
+            if (track != null && tree != null && track.hasLyrics && !session.results.containsKey(ProviderId.LOCAL)) {
+                val local = withContext(Dispatchers.IO) { runCatching { loadLocalLyrics(tree, track) }.getOrNull() }
+                if (local != null) {
+                    session.results[ProviderId.LOCAL] = local
+                    if (!session.userPicked) session.selected = ProviderId.LOCAL
+                    ensureRomanized(session)
+                }
+            }
             val initial = session.initial.takeUnless { ignoreInitial }
             if (initial != null) {
                 val lyrics = runCatching { LyricsRepository.fetch(initial) }.getOrNull()
@@ -493,19 +506,52 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             LyricsRepository.findAll(session.query, others) { id, r ->
                 viewModelScope.launch(Dispatchers.Main) {
                     session.results[id] = r
-                    if (!session.userPicked) {
-                        session.selected = LyricsRepository.best(session.results.toMap(), providerOrder)?.lyrics?.source
-                            ?: session.selected
-                    }
+                    if (!session.userPicked) session.selected = autoPick(session) ?: session.selected
                     ensureRomanized(session)
                 }
             }
         }
     }
 
+    /**
+     * Qué mostrar sin que el usuario elija: la mejor fuente sólo si está mejor sincronizada que
+     * la letra que ya tiene la canción; si no, la de la canción.
+     */
+    private fun autoPick(session: LyricsSession): ProviderId? {
+        val sources = session.results.filterKeys { it.searchable }
+        val best = LyricsRepository.best(sources, providerOrder)
+        val local = session.results[ProviderId.LOCAL] as? ProviderResult.Found
+        return when {
+            local == null -> best?.lyrics?.source
+            best != null && best.lyrics.sync.rank > local.lyrics.sync.rank -> best.lyrics.source
+            else -> ProviderId.LOCAL
+        }
+    }
+
+    /** La letra de la canción, leída y convertida. Bloqueante. */
+    private fun loadLocalLyrics(tree: Uri, track: Track): ProviderResult.Found? {
+        val text = writer.readLyrics(tree, track) ?: return null
+        val parsed = com.example.lrcfetcher.lyrics.LyricsParsers.parseLrc(text)
+        val lyrics = Lyrics(parsed.lines, parsed.sync, ProviderId.LOCAL, track.uri).withRealSync()
+        if (lyrics.isEmpty) return null
+        val candidate = SongCandidate(ProviderId.LOCAL, track.uri, track.title, track.artist.orEmpty(), track.album, track.durationMs)
+        return ProviderResult.Found(candidate, lyrics, 1.0)
+    }
+
+    /** Cambia entre la letra de la canción y la mejor encontrada por las fuentes. */
+    fun showLocal(session: LyricsSession, local: Boolean) {
+        val target = if (local) ProviderId.LOCAL
+        else session.lastSource?.takeIf { session.results[it] is ProviderResult.Found }
+            ?: LyricsRepository.best(session.results.filterKeys { it.searchable }, providerOrder)?.lyrics?.source
+        session.selected = target
+        session.userPicked = true
+        ensureRomanized(session)
+    }
+
     fun selectProvider(session: LyricsSession, id: ProviderId) {
         if (session.results[id] !is ProviderResult.Found) return
         session.selected = id
+        if (id.searchable) session.lastSource = id
         session.userPicked = true
         ensureRomanized(session)
     }
@@ -572,6 +618,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             session.saving = false
             result.onSuccess { updated ->
                 replaceTrack(updated)
+                // "En la canción" pasa a ser lo que se acaba de guardar.
+                withContext(Dispatchers.IO) { runCatching { loadLocalLyrics(tree, updated) }.getOrNull() }
+                    ?.let { session.results[ProviderId.LOCAL] = it; session.romanized.remove(it.candidate.key) }
                 message = UiText(
                     when (saveTarget) {
                         SaveTarget.EMBED -> R.string.msg_saved_embed
@@ -953,4 +1002,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun updateCheckUpdates(on: Boolean) { settings.checkUpdates = on }
+
+    /** Cambiar si se respetan los ".nomedia" vuelve a listar la carpeta (lo ya leído sigue en caché). */
+    fun updateSkipNoMedia(on: Boolean) {
+        if (settings.skipNoMedia == on) return
+        settings.skipNoMedia = on
+        rescan()
+    }
 }

@@ -73,6 +73,100 @@ object TagReader {
         }
     }.getOrNull()
 
+    /**
+     * Letra incrustada en el archivo (texto tal cual: LRC, LRC mejorado o sin tiempos). Si hay
+     * varias, se prefiere la que trae marcas de tiempo.
+     */
+    fun readLyrics(src: ByteSource, ext: String): String? = runCatching {
+        val all: List<String> = when (ext) {
+            "mp3", "aac" -> id3Lyrics(src)?.takeIf { it.isNotEmpty() } ?: apeItems(src)?.first?.get("LYRICS")?.let(::listOf).orEmpty()
+            "wav" -> riffId3(src)?.let { id3Lyrics(it) }.orEmpty()
+            "aiff", "aif", "aifc" -> aiffId3(src)?.let { id3Lyrics(it) }.orEmpty()
+            "ape", "wv", "mpc" -> apeItems(src)?.first?.get("LYRICS")?.let(::listOf).orEmpty()
+            "flac" -> flacBlocks(src)?.firstOrNull { it.type == 4 }?.let { b -> src.read(b.pos + 4, b.len) }
+                ?.let { vorbisLyrics(parseVorbisComments(it)) }.orEmpty()
+            "ogg", "oga", "opus" -> oggComments(src)?.let(::vorbisLyrics).orEmpty()
+            "m4a", "mp4", "alac", "m4b" -> ilst(src)?.let { l ->
+                boxes(src, l.contentStart, l.end).filter { it.type == "©lyr" }
+                    .mapNotNull { itemData(src, it, 4 shl 20)?.second?.let { d -> String(d, Charsets.UTF_8) } }
+            }.orEmpty()
+            else -> emptyList()
+        }
+        val texts = all.map { it.replace("\r\n", "\n").replace('\r', '\n').trim() }.filter { it.isNotBlank() }
+        texts.firstOrNull { TIMED.containsMatchIn(it) } ?: texts.maxByOrNull { it.length }
+    }.getOrNull()
+
+    private val TIMED = Regex("""\[\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?]""")
+
+    private fun vorbisLyrics(c: Map<String, List<String>>): List<String> =
+        listOf("SYNCEDLYRICS", "LYRICS", "UNSYNCEDLYRICS", "UNSYNCED LYRICS").flatMap { c[it].orEmpty() }
+
+    /** USLT (texto) y SYLT (sincronizada, convertida a LRC) de una etiqueta ID3v2. */
+    private fun id3Lyrics(src: ByteSource): List<String>? {
+        val tag = id3Frames(src) ?: return null
+        val out = mutableListOf<String>()
+        for (f in tag.frames) {
+            val d = (if (f.id in setOf("USLT", "ULT", "SYLT", "SLT")) frameData(src, tag, f) else null) ?: continue
+            if (d.size < 5) continue
+            val enc = d[0].toInt()
+            when (f.id) {
+                "USLT", "ULT" -> {
+                    // codificación, idioma (3), descripción terminada en 0, texto
+                    val p = skipTerminated(d, 4, enc)
+                    if (p < d.size) out += decodeString(d.copyOfRange(p, d.size), enc)
+                }
+                else -> syltToLrc(d, enc)?.let { out += it }
+            }
+        }
+        return out
+    }
+
+    private fun skipTerminated(d: ByteArray, from: Int, enc: Int): Int {
+        var p = from
+        if (enc == 1 || enc == 2) {
+            while (p + 1 < d.size && !(d[p].toInt() == 0 && d[p + 1].toInt() == 0)) p += 2
+            return p + 2
+        }
+        while (p < d.size && d[p].toInt() != 0) p++
+        return p + 1
+    }
+
+    private fun decodeString(b: ByteArray, enc: Int): String = when (enc) {
+        0 -> String(b, Charsets.ISO_8859_1)
+        1 -> String(b, Charsets.UTF_16)
+        2 -> String(b, Charsets.UTF_16BE)
+        else -> String(b, Charsets.UTF_8)
+    }.trimEnd('\u0000').trimStart('﻿')
+
+    /**
+     * SYLT: fragmentos de texto con su tiempo (en ms si el formato es 2). Un fragmento que
+     * empieza con salto de línea abre una línea nueva; si ninguno lo hace, cada uno es una línea.
+     */
+    private fun syltToLrc(d: ByteArray, enc: Int): String? {
+        if (d[4].toInt() != 2) return null // sólo tiempos en milisegundos
+        var p = skipTerminated(d, 6, enc)
+        val parts = mutableListOf<Pair<Long, String>>()
+        while (p < d.size) {
+            val end = skipTerminated(d, p, enc)
+            if (end + 4 > d.size) break
+            val text = decodeString(d.copyOfRange(p, (end - if (enc == 1 || enc == 2) 2 else 1).coerceAtLeast(p)), enc)
+            parts += u32(d, end) to text
+            p = end + 4
+        }
+        if (parts.isEmpty()) return null
+        fun t(ms: Long) = "%02d:%02d.%02d".format(ms / 60_000, ms / 1000 % 60, ms % 1000 / 10)
+        val grouped = parts.any { it.second.startsWith("\n") || it.second.startsWith("\r") }
+        if (!grouped) return parts.joinToString("\n") { (ms, s) -> "[${t(ms)}]${s.trim()}" }
+        val lines = mutableListOf<MutableList<Pair<Long, String>>>()
+        for ((ms, s) in parts) {
+            if (lines.isEmpty() || s.startsWith("\n") || s.startsWith("\r")) lines += mutableListOf<Pair<Long, String>>()
+            lines.last() += ms to s.trimStart('\n', '\r')
+        }
+        return lines.filter { l -> l.any { it.second.isNotBlank() } }.joinToString("\n") { l ->
+            "[${t(l.first().first)}]" + l.joinToString("") { (ms, s) -> "<${t(ms)}>$s" }
+        }
+    }
+
     // ------------------------------------------------------------------ utilidades
 
     internal fun u32(b: ByteArray, o: Int): Long =
@@ -476,7 +570,8 @@ object TagReader {
 
     // ------------------------------------------------------------------ APEv2 (APE, WavPack, Musepack…)
 
-    private fun readApe(src: ByteSource): TagInfo? {
+    /** Ítems de texto de la etiqueta APEv2 (claves en mayúsculas) y si trae portada. */
+    private fun apeItems(src: ByteSource): Pair<Map<String, String>, Boolean>? {
         val candidates = listOf(src.size - 32, src.size - 128 - 32)
         for (footerPos in candidates) {
             if (footerPos < 0) continue
@@ -504,17 +599,22 @@ object TagReader {
                 else if ((flags shr 1) and 3 == 0) items[key] = String(data, p, vlen, Charsets.UTF_8)
                 p += vlen
             }
-            val (track, trackTotal) = TrackTags.parsePair(items["TRACK"])
-            val (disc, discTotal) = TrackTags.parsePair(items["DISC"])
-            val tags = TrackTags(
-                title = items["TITLE"], artists = TrackTags.splitList(items["ARTIST"]), album = items["ALBUM"],
-                albumArtist = items["ALBUM ARTIST"] ?: items["ALBUMARTIST"], composers = TrackTags.splitList(items["COMPOSER"]),
-                genres = TrackTags.splitList(items["GENRE"]), year = items["YEAR"],
-                trackNumber = track, trackTotal = trackTotal, discNumber = disc, discTotal = discTotal,
-            ).normalized()
-            return TagInfo(tags, hasCover = hasCover, hasLyrics = !items["LYRICS"].isNullOrBlank())
+            return items to hasCover
         }
         return null
+    }
+
+    private fun readApe(src: ByteSource): TagInfo? {
+        val (items, hasCover) = apeItems(src) ?: return null
+        val (track, trackTotal) = TrackTags.parsePair(items["TRACK"])
+        val (disc, discTotal) = TrackTags.parsePair(items["DISC"])
+        val tags = TrackTags(
+            title = items["TITLE"], artists = TrackTags.splitList(items["ARTIST"]), album = items["ALBUM"],
+            albumArtist = items["ALBUM ARTIST"] ?: items["ALBUMARTIST"], composers = TrackTags.splitList(items["COMPOSER"]),
+            genres = TrackTags.splitList(items["GENRE"]), year = items["YEAR"],
+            trackNumber = track, trackTotal = trackTotal, discNumber = disc, discTotal = discTotal,
+        ).normalized()
+        return TagInfo(tags, hasCover = hasCover, hasLyrics = !items["LYRICS"].isNullOrBlank())
     }
 
     // ------------------------------------------------------------------ ASF / WMA

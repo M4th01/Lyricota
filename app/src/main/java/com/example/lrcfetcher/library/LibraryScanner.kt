@@ -51,9 +51,13 @@ class LibraryScanner(private val context: Context) {
         fun lrcKey(parentDocId: String, baseName: String) = parentDocId + "\u0000" + baseName.lowercase()
     }
 
-    /** Lista todo el árbol: una consulta por carpeta, carpetas en paralelo. */
+    /**
+     * Lista todo el árbol: una consulta por carpeta, carpetas en paralelo. Con [skipNoMedia],
+     * las subcarpetas que contienen un archivo ".nomedia" (y todo lo que cuelga de ellas) se
+     * ignoran, como hace Android; la carpeta elegida por el usuario se lee siempre.
+     */
     @OptIn(ExperimentalCoroutinesApi::class)
-    suspend fun list(treeUri: Uri): Listing = withContext(Dispatchers.IO) {
+    suspend fun list(treeUri: Uri, skipNoMedia: Boolean = true): Listing = withContext(Dispatchers.IO) {
         val rootId = DocumentsContract.getTreeDocumentId(treeUri)
         val audio = ConcurrentLinkedQueue<Entry>()
         val lrc = java.util.concurrent.ConcurrentHashMap<String, String>()
@@ -62,6 +66,9 @@ class LibraryScanner(private val context: Context) {
         suspend fun visit(dirId: String) {
             ensureActive()
             val subdirs = mutableListOf<String>()
+            val dirAudio = mutableListOf<Entry>()
+            val dirLrc = mutableMapOf<String, String>()
+            var noMedia = false
             val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, dirId)
             context.contentResolver.query(childrenUri, PROJECTION, null, null, null)?.use { c ->
                 while (c.moveToNext()) {
@@ -72,13 +79,17 @@ class LibraryScanner(private val context: Context) {
                         if (!name.startsWith(".")) subdirs += id
                         continue
                     }
+                    if (name.equals(".nomedia", ignoreCase = true)) noMedia = true
                     val ext = name.substringAfterLast('.', "").lowercase()
                     when {
-                        ext in AUDIO_EXT -> audio += Entry(id, name, c.getLong(3), c.getLong(4), dirId)
-                        ext == "lrc" -> lrc[lrcKey(dirId, name.substringBeforeLast('.'))] = id
+                        ext in AUDIO_EXT -> dirAudio += Entry(id, name, c.getLong(3), c.getLong(4), dirId)
+                        ext == "lrc" -> dirLrc[lrcKey(dirId, name.substringBeforeLast('.'))] = id
                     }
                 }
             }
+            if (noMedia && skipNoMedia && dirId != rootId) return
+            audio += dirAudio
+            lrc += dirLrc
             coroutineScope { subdirs.forEach { launch(io) { visit(it) } } }
         }
 

@@ -53,6 +53,9 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -87,7 +90,13 @@ import com.example.lrcfetcher.SaveTarget
 import com.example.lrcfetcher.lyrics.LrcWriter
 import com.example.lrcfetcher.lyrics.LyricLine
 import com.example.lrcfetcher.lyrics.Lyrics
+import com.example.lrcfetcher.lyrics.ProviderId
 import com.example.lrcfetcher.lyrics.ProviderResult
+import com.example.lrcfetcher.lyrics.LyricWord
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import com.example.lrcfetcher.lyrics.SyncType
 import com.example.lrcfetcher.lyrics.TextMode
 import com.example.lrcfetcher.romanization.Romanizer
@@ -109,7 +118,7 @@ fun LyricsScreen(vm: AppViewModel, session: LyricsSession, snackbar: SnackbarHos
     LaunchedEffect(player?.playing) {
         while (player?.playing == true) {
             player.tick()
-            delay(80)
+            delay(40)
         }
     }
     val lyrics = vm.displayLyrics(session)
@@ -186,7 +195,10 @@ fun LyricsScreen(vm: AppViewModel, session: LyricsSession, snackbar: SnackbarHos
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
-            ProviderChips(vm, session)
+            val local = session.results[ProviderId.LOCAL] as? ProviderResult.Found
+            val showingLocal = session.selected == ProviderId.LOCAL
+            if (local != null) LocalToggle(local, showingLocal) { vm.showLocal(session, it) }
+            if (!showingLocal) ProviderChips(vm, session)
             OptionChips(vm, session, found?.lyrics)
             if (offsetOpen || session.offsetMs != 0L) OffsetRow(session) { offsetOpen = false }
             if (session.romanizing) LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 16.dp))
@@ -199,12 +211,15 @@ fun LyricsScreen(vm: AppViewModel, session: LyricsSession, snackbar: SnackbarHos
                     mode = vm.textMode,
                     translation = vm.includeTranslation,
                     voices = vm.includeVoices,
-                    source = found?.let { "${it.lyrics.source.label} · ${it.candidate.artist} — ${it.candidate.title}" },
+                    source = found?.let {
+                        if (it.lyrics.source == ProviderId.LOCAL) stringResource(R.string.lyrics_local_source)
+                        else "${it.lyrics.source.label} · ${it.candidate.artist} — ${it.candidate.title}"
+                    },
                     positionMs = player?.takeIf { it.started }?.positionMs?.minus(session.offsetMs),
                     following = player?.playing == true,
                     onLineClick = player?.let { p -> { line -> p.seekTo(line.start + session.offsetMs) } },
                 )
-                stillLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                stillLoading && !showingLocal -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 else -> EmptyState(
                     title = stringResource(R.string.not_found_title),
                     body = stringResource(R.string.not_found_body),
@@ -216,6 +231,24 @@ fun LyricsScreen(vm: AppViewModel, session: LyricsSession, snackbar: SnackbarHos
     if (editOpen) EditQueryDialog(session, onDismiss = { editOpen = false }) { title, artist ->
         editOpen = false
         vm.editQuery(session, title, artist)
+    }
+}
+
+/** "En la canción" (letra que ya tiene el archivo) frente a "Fuentes" (lo encontrado en línea). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LocalToggle(local: ProviderResult.Found, showingLocal: Boolean, onChange: (Boolean) -> Unit) {
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+        SegmentedButton(
+            selected = showingLocal,
+            onClick = { onChange(true) },
+            shape = SegmentedButtonDefaults.itemShape(0, 2),
+        ) { Text(stringResource(R.string.lyrics_in_song, local.lyrics.sync.label()), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        SegmentedButton(
+            selected = !showingLocal,
+            onClick = { onChange(false) },
+            shape = SegmentedButtonDefaults.itemShape(1, 2),
+        ) { Text(stringResource(R.string.lyrics_from_sources), maxLines = 1) }
     }
 }
 
@@ -342,8 +375,17 @@ private fun LyricsBody(
         LazyColumn(state = listState, contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp)) {
             itemsIndexed(lyrics.lines) { index, line ->
                 val roman = line.romanText?.takeIf { it.isNotBlank() && it != line.text }
-                val main = if (mode == TextMode.ROMANIZED) roman ?: line.text else line.text
+                val showRomanMain = mode == TextMode.ROMANIZED && roman != null
+                val main = if (showRomanMain) roman!! else line.text
                 val dim = current >= 0 && index != current
+                // Karaoke letra por letra en la línea que suena (letra palabra por palabra).
+                val live = index == current && positionMs != null
+                val sung = MaterialTheme.colorScheme.primary
+                val pending = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                fun karaokeOf(words: List<LyricWord>?, fallback: String): AnnotatedString? =
+                    if (live && lyrics.sync == SyncType.WORD && words != null && hasWordTiming(words)) karaoke(words, positionMs!!, sung, pending)
+                    else null
+                val mainKaraoke = karaokeOf(if (showRomanMain) line.romanWords else line.words, main)
                 val rowModifier = Modifier.fillMaxWidth()
                     .then(if (onLineClick != null && synced) Modifier.clickable { onLineClick(line) } else Modifier)
                     .padding(vertical = 6.dp)
@@ -361,23 +403,38 @@ private fun LyricsBody(
                     val secondVoice = voices && line.isSecondaryVoice
                     val align = if (secondVoice) TextAlign.End else TextAlign.Start
                     Column(Modifier.weight(1f), horizontalAlignment = if (secondVoice) Alignment.End else Alignment.Start) {
-                        Text(
-                            if (main.isBlank()) "♪" else main,
-                            style = LyricLineStyle,
-                            textAlign = align,
-                            color = if (index == current) MaterialTheme.colorScheme.primary else Color.Unspecified,
-                        )
+                        if (mainKaraoke != null) {
+                            Text(mainKaraoke, style = LyricLineStyle, textAlign = align)
+                        } else {
+                            Text(
+                                if (main.isBlank()) "♪" else main,
+                                style = LyricLineStyle,
+                                textAlign = align,
+                                color = if (index == current) MaterialTheme.colorScheme.primary else Color.Unspecified,
+                            )
+                        }
                         if (mode == TextMode.BOTH && roman != null) {
-                            Text(roman, style = MaterialTheme.typography.bodyMedium, textAlign = align, color = MaterialTheme.colorScheme.primary)
+                            val romanKaraoke = karaokeOf(line.romanWords, roman)
+                            if (romanKaraoke != null) Text(romanKaraoke, style = MaterialTheme.typography.bodyMedium, textAlign = align)
+                            else Text(roman, style = MaterialTheme.typography.bodyMedium, textAlign = align, color = MaterialTheme.colorScheme.primary)
                         }
                         val bg = if (voices) line.backgroundText else null
                         if (bg != null) {
                             val bgRoman = line.backgroundRomanText?.takeIf { it != bg }
-                            val shown = if (mode == TextMode.ROMANIZED) bgRoman ?: bg else bg
-                            Text(
-                                "($shown)", style = MaterialTheme.typography.bodyMedium, textAlign = align,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            val romanBg = mode == TextMode.ROMANIZED && bgRoman != null
+                            val shown = if (romanBg) bgRoman!! else bg
+                            val bgKaraoke = karaokeOf(if (romanBg) line.backgroundRoman else line.background, shown)
+                            if (bgKaraoke != null) {
+                                Text(
+                                    buildAnnotatedString { append("("); append(bgKaraoke); append(")") },
+                                    style = MaterialTheme.typography.bodyMedium, textAlign = align,
+                                )
+                            } else {
+                                Text(
+                                    "($shown)", style = MaterialTheme.typography.bodyMedium, textAlign = align,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                             if (mode == TextMode.BOTH && bgRoman != null) {
                                 Text("($bgRoman)", style = MaterialTheme.typography.bodySmall, textAlign = align, color = MaterialTheme.colorScheme.primary)
                             }
@@ -399,6 +456,28 @@ private fun LyricsBody(
                 }
             }
         }
+    }
+}
+
+/** Las palabras traen tiempos propios (no todas en el mismo instante). */
+private fun hasWordTiming(words: List<LyricWord>): Boolean =
+    words.size > 1 && words.any { it.end > it.start } || words.size == 1 && words[0].end > words[0].start
+
+/**
+ * Colorea lo ya cantado: palabras completas y, dentro de la palabra que suena, las letras en
+ * proporción al tiempo transcurrido.
+ */
+internal fun karaoke(words: List<LyricWord>, pos: Long, sung: Color, pending: Color): AnnotatedString = buildAnnotatedString {
+    words.forEachIndexed { i, w ->
+        val text = if (i == 0) w.text.trimStart() else if (i == words.lastIndex) w.text.trimEnd() else w.text
+        val done = when {
+            pos >= w.end && w.end > w.start -> text.length
+            pos < w.start -> 0
+            w.end <= w.start -> text.length
+            else -> ((pos - w.start).toDouble() / (w.end - w.start) * text.length).toInt().coerceIn(0, text.length)
+        }
+        if (done > 0) withStyle(SpanStyle(color = sung)) { append(text.substring(0, done)) }
+        if (done < text.length) withStyle(SpanStyle(color = pending)) { append(text.substring(done)) }
     }
 }
 

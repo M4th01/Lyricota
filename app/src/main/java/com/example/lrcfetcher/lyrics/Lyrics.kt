@@ -57,6 +57,26 @@ data class Lyrics(
     /** Cuántas líneas marcan otro cantante o coros (para elegir la fuente más completa). */
     val voiceMarks: Int get() = lines.count { it.isSecondaryVoice || it.backgroundText != null }
     val plainText: String get() = lines.joinToString("\n") { l -> listOfNotNull(l.text, l.backgroundText).joinToString("\n") }
+
+    /**
+     * Algunas fuentes devuelven letra sin sincronizar como si lo estuviera (todas las líneas
+     * en 00:00). Se trata como texto sin tiempos para no mostrarla ni guardarla como sincronizada.
+     */
+    fun withRealSync(): Lyrics {
+        if (sync == SyncType.PLAIN || lines.size < 2) return this
+        if (lines.map { it.start }.distinct().size > 1) return this
+        return copy(
+            sync = SyncType.PLAIN,
+            lines = lines.map { l ->
+                LyricLine.plain(-1, -1, l.text).copy(
+                    agent = l.agent,
+                    translation = l.translation,
+                    romanWords = l.romanText?.let { listOf(LyricWord(-1, -1, it)) },
+                    background = l.backgroundText?.let { listOf(LyricWord(-1, -1, it)) },
+                )
+            },
+        )
+    }
 }
 
 enum class TextMode { ORIGINAL, ROMANIZED, BOTH }

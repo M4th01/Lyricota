@@ -157,6 +157,21 @@ class ScreenshotTest {
     }
 
     @Test
+    fun lyricsInSong() {
+        val vm = vm()
+        val (cand, lyrics) = appleLyrics()
+        val session = LyricsSession(vm.tracks[1], TrackQuery("Walking Home", "The Examples"), null)
+        val parsed = LyricsParsers.parseLrc("[00:01.00]A line that was already in the file\n[00:04.00]Second invented line\n[00:08.00]Third one")
+        val local = Lyrics(parsed.lines, parsed.sync, ProviderId.LOCAL, "u2")
+        session.results[ProviderId.LOCAL] = ProviderResult.Found(SongCandidate(ProviderId.LOCAL, "u2", "Walking Home", "The Examples"), local, 1.0)
+        session.results[ProviderId.APPLE_MUSIC] = ProviderResult.Found(cand, lyrics, 1.0)
+        session.results[ProviderId.LRCLIB] = ProviderResult.NotFound
+        session.selected = ProviderId.LOCAL
+        compose.setContent { LyricotaTheme(true) { LyricsScreen(vm, session, SnackbarHostState()) } }
+        compose.onRoot().captureRoboImage("build/outputs/roborazzi/lyrics_in_song.png")
+    }
+
+    @Test
     fun lyricsBoth() {
         val vm = vm()
         val (cand, lyrics) = appleLyrics()

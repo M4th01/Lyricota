@@ -19,7 +19,16 @@ enum class ProviderId(val label: String, val wordSync: Boolean, val voices: Bool
     KUGOU("Kugou", true),
     NETEASE("NetEase", true),
     SYNCLRC("SyncLRC", true),
-    LRCLIB("LRCLIB", false);
+    LRCLIB("LRCLIB", false),
+
+    /** La letra que ya tiene la canción (incrustada o .lrc al lado). No es un proveedor de búsqueda. */
+    LOCAL("In the song", false);
+
+    val searchable: Boolean get() = this != LOCAL
+
+    companion object {
+        val SEARCHABLE: List<ProviderId> get() = entries.filter { it.searchable }
+    }
 }
 
 data class SongCandidate(

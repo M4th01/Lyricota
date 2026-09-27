@@ -26,7 +26,7 @@ object LyricsRepository {
 
     suspend fun fetch(candidate: SongCandidate): Lyrics? {
         lyricsCache[candidate.key]?.let { return it }
-        val result = withContext(Dispatchers.IO) { LyricsProvider.of(candidate.provider).fetch(candidate) }
+        val result = withContext(Dispatchers.IO) { LyricsProvider.of(candidate.provider).fetch(candidate) }?.withRealSync()
         if (result != null) lyricsCache[candidate.key] = result
         return result
     }

@@ -296,4 +296,10 @@
     <string name="msg_update_error">Couldn\'t check for updates</string>
     <string name="msg_update_failed">The update download failed</string>
     <string name="msg_update_allow">Allow Lyricota to install apps, then come back and tap Install</string>
+    <string name="settings_library">Library</string>
+    <string name="setting_nomedia">Skip folders with .nomedia</string>
+    <string name="setting_nomedia_hint">Like Android, subfolders that contain a .nomedia file (and everything inside them) are not scanned.</string>
+    <string name="lyrics_in_song">In the song · %1$s</string>
+    <string name="lyrics_from_sources">From sources</string>
+    <string name="lyrics_local_source">Lyrics already saved in this song</string>
 </resources>

@@ -286,4 +286,10 @@
     <string name="msg_update_error">Não foi possível procurar atualizações</string>
     <string name="msg_update_failed">O download da atualização falhou</string>
     <string name="msg_update_allow">Permita que o Lyricota instale apps e depois volte e toque em Instalar</string>
+    <string name="settings_library">Biblioteca</string>
+    <string name="setting_nomedia">Ignorar pastas com .nomedia</string>
+    <string name="setting_nomedia_hint">Como o Android faz, as subpastas com um arquivo .nomedia (e tudo dentro delas) não são escaneadas.</string>
+    <string name="lyrics_in_song">Na música · %1$s</string>
+    <string name="lyrics_from_sources">Das fontes</string>
+    <string name="lyrics_local_source">Letra que já está nesta música</string>
 </resources>

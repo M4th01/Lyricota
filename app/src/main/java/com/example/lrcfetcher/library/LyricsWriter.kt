@@ -39,6 +39,24 @@ class LyricsWriter(private val context: Context) {
         }
     }.getOrNull()
 
+    /**
+     * La letra que ya tiene la canción: la incrustada en sus etiquetas o, si no, la del .lrc de
+     * al lado. null si no tiene ninguna. Bloqueante.
+     */
+    fun readLyrics(treeUri: Uri, track: Track): String? {
+        val embedded = runCatching {
+            context.contentResolver.openFileDescriptor(track.androidUri, "r")?.use {
+                FileInputStream(it.fileDescriptor).channel.use { ch -> TagReader.readLyrics(ByteSource.of(ch), track.ext) }
+            }
+        }.getOrNull()
+        if (!embedded.isNullOrBlank()) return embedded
+        val lrc = track.lrcDocId ?: return null
+        return runCatching {
+            context.contentResolver.openInputStream(DocumentsContract.buildDocumentUriUsingTree(treeUri, lrc))
+                ?.use { it.readBytes().toString(Charsets.UTF_8) }
+        }.getOrNull()?.trimStart('﻿')?.takeIf { it.isNotBlank() }
+    }
+
     // ------------------------------------------------------------------ .lrc al lado
 
     /** Crea o reemplaza "<nombre>.lrc" en la misma carpeta. Devuelve el documentId del .lrc. */

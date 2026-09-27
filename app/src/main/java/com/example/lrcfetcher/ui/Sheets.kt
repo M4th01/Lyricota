@@ -68,6 +68,13 @@ fun SettingsSheet(vm: AppViewModel, onLanguage: (AppLanguage) -> Unit, onDismiss
             SaveTarget.entries.forEach { t -> RadioRow(t.label(), vm.saveTarget == t) { vm.updateSaveTarget(t) } }
             Hint(stringResource(R.string.target_hint))
 
+            Section(stringResource(R.string.settings_library))
+            var skipNoMedia by remember { mutableStateOf(vm.settings.skipNoMedia) }
+            SwitchRow(stringResource(R.string.setting_nomedia), stringResource(R.string.setting_nomedia_hint), skipNoMedia) {
+                skipNoMedia = it
+                vm.updateSkipNoMedia(it)
+            }
+
             Section(stringResource(R.string.settings_lrc))
             SwitchRow(stringResource(R.string.setting_voices), stringResource(R.string.setting_voices_hint), vm.includeVoices, vm::updateVoices)
             SwitchRow(stringResource(R.string.setting_millis), stringResource(R.string.setting_millis_hint), vm.millis, vm::updateMillis)

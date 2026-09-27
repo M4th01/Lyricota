@@ -46,18 +46,18 @@ class Settings(context: Context) {
     /** Orden de preferencia de proveedores (los WbW primero por defecto). */
     var providerOrder: List<ProviderId>
         get() {
-            val saved = prefs.getString("provider_order", null)?.split(',')?.mapNotNull { n -> ProviderId.entries.firstOrNull { it.name == n } }
+            val saved = prefs.getString("provider_order", null)?.split(',')?.mapNotNull { n -> ProviderId.SEARCHABLE.firstOrNull { it.name == n } }
                 .orEmpty()
             // Proveedores nuevos (p. ej. AMLL) se insertan en su posición por defecto.
             val result = saved.toMutableList()
-            ProviderId.entries.forEachIndexed { i, id -> if (id !in result) result.add(i.coerceAtMost(result.size), id) }
+            ProviderId.SEARCHABLE.forEachIndexed { i, id -> if (id !in result) result.add(i.coerceAtMost(result.size), id) }
             return result
         }
         set(v) = prefs.edit().putString("provider_order", v.joinToString(",") { it.name }).apply()
 
     var disabledProviders: Set<ProviderId>
         get() = prefs.getStringSet("providers_off", emptySet()).orEmpty()
-            .mapNotNull { n -> ProviderId.entries.firstOrNull { it.name == n } }.toSet()
+            .mapNotNull { n -> ProviderId.SEARCHABLE.firstOrNull { it.name == n } }.toSet()
         set(v) = prefs.edit().putStringSet("providers_off", v.map { it.name }.toSet()).apply()
 
     val enabledProviders: List<ProviderId> get() = providerOrder.filter { it !in disabledProviders }
@@ -103,6 +103,11 @@ class Settings(context: Context) {
     var onboardingDone: Boolean
         get() = prefs.getBoolean("onboarding_done", false)
         set(v) = prefs.edit().putBoolean("onboarding_done", v).apply()
+
+    /** Ignorar las subcarpetas con un archivo ".nomedia" (como hace Android). */
+    var skipNoMedia: Boolean
+        get() = prefs.getBoolean("skip_nomedia", true)
+        set(v) = prefs.edit().putBoolean("skip_nomedia", v).apply()
 
     /** Buscar actualizaciones en GitHub al abrir la app. */
     var checkUpdates: Boolean

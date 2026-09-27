@@ -286,4 +286,10 @@
     <string name="msg_update_error">アップデートを確認できませんでした</string>
     <string name="msg_update_failed">アップデートのダウンロードに失敗しました</string>
     <string name="msg_update_allow">Lyricota にアプリのインストールを許可してから、戻って「インストール」をタップしてください</string>
+    <string name="settings_library">ライブラリ</string>
+    <string name="setting_nomedia">.nomedia のあるフォルダを除外</string>
+    <string name="setting_nomedia_hint">Android と同様に、.nomedia ファイルがあるサブフォルダ（とその中身）はスキャンしません。</string>
+    <string name="lyrics_in_song">曲内 · %1$s</string>
+    <string name="lyrics_from_sources">ソースから</string>
+    <string name="lyrics_local_source">この曲に保存済みの歌詞</string>
 </resources>

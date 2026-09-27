@@ -35,7 +35,8 @@
 - **Reads the real tags** of each file (MP3, FLAC, M4A, OGG, Opus, WAV, AIFF, APE, WavPack, WMA) and detects songs whose title and artist are swapped.
 - **Background batches** with a progress notification (percentage) and a notification when they finish.
 - Fast, incremental library scan: only new or changed songs are read again.
-- Built-in player to check the sync and adjust the offset.
+- **Lyrics already in the song**: shows the embedded lyrics (or the `.lrc` next to the file) even when no source finds the song, with a switch to compare them with what the sources found.
+- Built-in player with **letter-by-letter karaoke** highlighting to check the sync and adjust the offset.
 - First-run tutorial that explains each permission before asking for it.
 - In-app update notice with one-tap download from GitHub Releases.
 - Interface in English, Spanish, Portuguese and Japanese.
