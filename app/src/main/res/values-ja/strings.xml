@@ -186,7 +186,7 @@
     <string name="meta_review_banner">メタデータの変更にはユーザーの承認が必要です（%1$d）</string>
     <string name="meta_review_action">確認</string>
     <string name="meta_review_dismiss">却下</string>
-    <string name="meta_review_notice">メタデータの変更にはユーザーの承認が必要です：この曲のタイトルとアーティストに確実に一致する結果がありませんでした。結果を確認して手動で承認してください。</string>
+    <string name="meta_review_notice">下の結果はこの曲のタイトル・アーティストと完全には一致しないため、自動では適用されませんでした。正しいものがあれば「使う」→「変更を承認」をタップしてください。なければ手動で修正するか「却下」をタップすると、曲はそのまま残ります。</string>
     <string name="msg_meta_saved">メタデータを保存しました</string>
     <string name="msg_meta_unsupported">%1$s ファイルはまだ編集できません（MP3・FLAC・M4A・OGG・OPUS に対応）</string>
     <string name="msg_cover_error">画像をダウンロードできませんでした</string>
@@ -292,4 +292,17 @@
     <string name="lyrics_in_song">曲内 · %1$s</string>
     <string name="lyrics_from_sources">ソースから</string>
     <string name="lyrics_local_source">この曲に保存済みの歌詞</string>
+    <string name="meta_review_why">一括処理では、これらの曲とタイトル・アーティストが確実に一致する結果が見つからなかったため、何も変更していません。</string>
+    <string name="meta_review_steps">手順：\n1. リストの曲をタップします。\n2. 正しい結果があれば「使う」をタップし、「変更を承認」をタップします。\n3. 正しい結果がなければ手動で修正するか「却下」をタップします。曲はそのまま残ります。</string>
+    <string name="meta_review_dismiss_all">すべて却下</string>
+    <string name="meta_review_dismiss_all_title">保留中の変更をすべて却下しますか？</string>
+    <string name="msg_review_dismissed">却下しました：%1$d 曲はそのままです</string>
+    <string name="meta_review_notice_title">この曲はあなたの承認が必要です</string>
+    <string name="meta_review_notice_none">どのソースでもこの曲が見つからなかったため、適用できるものがありません。手動で入力して「変更を承認」をタップするか、タイトルやアーティストを直して再検索するか、「却下」をタップして曲をそのまま残してください。</string>
+    <plurals name="meta_review_title">
+        <item quantity="other">%d 曲があなたの承認を待っています</item>
+    </plurals>
+    <plurals name="meta_review_dismiss_all_body">
+        <item quantity="other">%d 曲は承認待ちから外れ、そのまま残ります。ファイルには何も書き込みません。メタデータは後から補完できます。</item>
+    </plurals>
 </resources>

@@ -150,6 +150,17 @@ class ScreenshotTest {
     }
 
     @Test
+    @Config(qualifiers = "es-w400dp-h860dp-xhdpi")
+    fun reviewSection() {
+        val vm = vm()
+        vm.tracks = vm.tracks.mapIndexed { i, t -> if (i >= 2) t.copy(needsReview = true) else t }
+        vm.changeSection(Section.METADATA)
+        vm.updateMetaFilter(MetaFilter.REVIEW)
+        compose.setContent { LyricotaTheme(false) { LibraryScreen(vm, SnackbarHostState(), {}, {}, {}, {}, {}) } }
+        compose.onRoot().captureRoboImage("build/outputs/roborazzi/review_section.png")
+    }
+
+    @Test
     fun libraryDark() {
         val vm = vm()
         compose.setContent { LyricotaTheme(true) { LibraryScreen(vm, SnackbarHostState(), {}, {}, {}, {}, {}) } }

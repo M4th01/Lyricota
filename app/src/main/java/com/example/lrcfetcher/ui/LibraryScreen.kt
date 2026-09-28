@@ -37,6 +37,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.AlertDialog
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -366,25 +368,49 @@ private fun BatchBanner(vm: AppViewModel) {
 @Composable
 private fun ReviewBanner(vm: AppViewModel) {
     val count = vm.reviewCount
-    if (count == 0 || (vm.section == Section.METADATA && vm.metaFilter == MetaFilter.REVIEW)) return
+    if (count == 0) return
+    // En el filtro "Por aprobar" se explican los pasos; en el resto, un aviso corto.
+    val reviewing = vm.section == Section.METADATA && vm.metaFilter == MetaFilter.REVIEW
+    var confirm by remember { mutableStateOf(false) }
+    val onColor = MaterialTheme.colorScheme.onTertiaryContainer
     Surface(
         color = MaterialTheme.colorScheme.tertiaryContainer,
         shape = RoundedCornerShape(16.dp),
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
     ) {
-        Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Warning, null, tint = MaterialTheme.colorScheme.onTertiaryContainer, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(10.dp))
-            Text(
-                stringResource(R.string.meta_review_banner, count),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onTertiaryContainer,
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(onClick = { vm.changeSection(Section.METADATA); vm.updateMetaFilter(MetaFilter.REVIEW) }) {
-                Text(stringResource(R.string.meta_review_action))
+        Column(Modifier.padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Warning, null, tint = onColor, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    pluralStringResource(R.plurals.meta_review_title, count, count),
+                    style = MaterialTheme.typography.titleSmall, color = onColor,
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(stringResource(R.string.meta_review_why), style = MaterialTheme.typography.bodySmall, color = onColor, modifier = Modifier.padding(end = 8.dp))
+            if (reviewing) {
+                Spacer(Modifier.height(6.dp))
+                Text(stringResource(R.string.meta_review_steps), style = MaterialTheme.typography.bodySmall, color = onColor, modifier = Modifier.padding(end = 8.dp))
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = { confirm = true }) { Text(stringResource(R.string.meta_review_dismiss_all)) }
+                if (!reviewing) {
+                    TextButton(onClick = { vm.changeSection(Section.METADATA); vm.updateMetaFilter(MetaFilter.REVIEW) }) {
+                        Text(stringResource(R.string.meta_review_action))
+                    }
+                }
             }
         }
+    }
+    if (confirm) {
+        AlertDialog(
+            onDismissRequest = { confirm = false },
+            title = { Text(stringResource(R.string.meta_review_dismiss_all_title)) },
+            text = { Text(pluralStringResource(R.plurals.meta_review_dismiss_all_body, count, count)) },
+            confirmButton = { TextButton(onClick = { confirm = false; vm.dismissAllReviews() }) { Text(stringResource(R.string.meta_review_dismiss_all)) } },
+            dismissButton = { TextButton(onClick = { confirm = false }) { Text(stringResource(R.string.cancel)) } },
+        )
     }
 }
 

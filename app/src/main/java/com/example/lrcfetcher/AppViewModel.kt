@@ -813,6 +813,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         closeMetadata()
     }
 
+    /** Rechaza los cambios pendientes de todas las canciones: quedan como estaban (no se escribe nada). */
+    fun dismissAllReviews() {
+        val count = reviewCount
+        if (count == 0) return
+        tracks = tracks.map { if (it.needsReview) it.copy(needsReview = false) else it }
+        folderUri?.let { tree -> viewModelScope.launch(Dispatchers.IO) { cache.save(tree, tracks) } }
+        if (metaFilter == MetaFilter.REVIEW) updateMetaFilter(MetaFilter.ALL)
+        message = UiText(R.string.msg_review_dismissed, count)
+    }
+
     /** Relee un archivo recién escrito (tamaño, fecha y etiquetas nuevas). Bloqueante. */
     private fun rereadTrack(track: Track): Track {
         val tree = folderUri

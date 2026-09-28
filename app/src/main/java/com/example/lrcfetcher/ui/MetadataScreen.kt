@@ -136,7 +136,17 @@ fun MetadataScreen(vm: AppViewModel, session: MetadataSession, snackbar: Snackba
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Filled.Warning, null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
                             Spacer(Modifier.width(10.dp))
-                            Text(stringResource(R.string.meta_review_notice), style = MaterialTheme.typography.bodySmall)
+                            // Qué hacer depende de si alguna fuente encontró algo.
+                            val nothingFound = session.searched && !session.searching &&
+                                (session.result == null || session.result?.bySource.isNullOrEmpty())
+                            Column {
+                                Text(stringResource(R.string.meta_review_notice_title), style = MaterialTheme.typography.titleSmall)
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    stringResource(if (nothingFound) R.string.meta_review_notice_none else R.string.meta_review_notice),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
                         }
                     }
                 }

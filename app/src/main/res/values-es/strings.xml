@@ -185,8 +185,8 @@
     <string name="cover_no_results">No se encontraron imágenes. Busca primero los metadatos (con el título y artista correctos).</string>
     <string name="meta_review_banner">Es necesaria la aceptación del usuario para cambios en metadatos (%1$d)</string>
     <string name="meta_review_action">Revisar</string>
-    <string name="meta_review_dismiss">Descartar</string>
-    <string name="meta_review_notice">Es necesaria la aceptación del usuario para cambios en metadatos: ningún resultado coincidió con seguridad con el título y el artista de esta canción. Revisa los resultados y acepta los cambios manualmente.</string>
+    <string name="meta_review_dismiss">Rechazar</string>
+    <string name="meta_review_notice">Los resultados de abajo no coinciden del todo con el título y el artista de esta canción, por eso no se aplicaron solos. Si uno es correcto, toca «Usar» y luego «Aceptar cambios». Si ninguno lo es, corrige los campos a mano o toca «Rechazar» para dejar la canción como está.</string>
     <string name="msg_meta_saved">Metadatos guardados</string>
     <string name="msg_meta_unsupported">Los archivos %1$s aún no se pueden editar (se admiten MP3, FLAC, M4A, OGG y OPUS)</string>
     <string name="msg_cover_error">No se pudo descargar la imagen</string>
@@ -292,4 +292,19 @@
     <string name="lyrics_in_song">En la canción · %1$s</string>
     <string name="lyrics_from_sources">De las fuentes</string>
     <string name="lyrics_local_source">Letra que ya tiene esta canción</string>
+    <string name="meta_review_why">El lote no encontró un resultado cuyo título y artista coincidan con seguridad con estas canciones, así que no se cambió nada en ellas.</string>
+    <string name="meta_review_steps">Qué hacer:\n1. Toca una canción de la lista.\n2. Si uno de los resultados es correcto, toca «Usar» y luego «Aceptar cambios».\n3. Si ninguno es correcto, corrige los campos a mano o toca «Rechazar»: la canción queda como estaba.</string>
+    <string name="meta_review_dismiss_all">Rechazar todas</string>
+    <string name="meta_review_dismiss_all_title">¿Rechazar todos los cambios pendientes?</string>
+    <string name="msg_review_dismissed">Rechazadas: %1$d canciones quedan como estaban</string>
+    <string name="meta_review_notice_title">Esta canción necesita tu aprobación</string>
+    <string name="meta_review_notice_none">Ninguna fuente encontró esta canción, así que no hay nada que aplicar. Puedes escribir los datos a mano y tocar «Aceptar cambios», corregir el título o el artista y volver a buscar, o tocar «Rechazar» para dejar la canción como está.</string>
+    <plurals name="meta_review_title">
+        <item quantity="one">%d canción espera tu aprobación</item>
+        <item quantity="other">%d canciones esperan tu aprobación</item>
+    </plurals>
+    <plurals name="meta_review_dismiss_all_body">
+        <item quantity="one">%d canción dejará de estar por aprobar y quedará como está. No se escribe nada en tus archivos; puedes completar sus metadatos más adelante.</item>
+        <item quantity="other">%d canciones dejarán de estar por aprobar y quedarán como están. No se escribe nada en tus archivos; puedes completar sus metadatos más adelante.</item>
+    </plurals>
 </resources>

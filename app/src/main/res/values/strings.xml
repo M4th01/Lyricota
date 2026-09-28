@@ -195,8 +195,8 @@
     <string name="cover_no_results">No images found. Search the metadata first (with the right title and artist).</string>
     <string name="meta_review_banner">User approval is required for metadata changes (%1$d)</string>
     <string name="meta_review_action">Review</string>
-    <string name="meta_review_dismiss">Dismiss</string>
-    <string name="meta_review_notice">User approval is required for metadata changes: no result matched this song\'s title and artist safely. Check the results and accept the changes manually.</string>
+    <string name="meta_review_dismiss">Reject</string>
+    <string name="meta_review_notice">The results below don\'t fully match this song\'s title and artist, so they weren\'t applied automatically. If one is right, tap “Use” and then “Accept changes”. If none is, fix the fields by hand or tap “Reject” to leave the song as it is.</string>
     <string name="msg_meta_saved">Metadata saved</string>
     <string name="msg_meta_unsupported">%1$s files can\'t be edited yet (MP3, FLAC, M4A, OGG and OPUS are supported)</string>
     <string name="msg_cover_error">Couldn\'t download the image</string>
@@ -302,4 +302,19 @@
     <string name="lyrics_in_song">In the song · %1$s</string>
     <string name="lyrics_from_sources">From sources</string>
     <string name="lyrics_local_source">Lyrics already saved in this song</string>
+    <string name="meta_review_why">The batch didn\'t find a result whose title and artist safely match these songs, so nothing was changed in them.</string>
+    <string name="meta_review_steps">What to do:\n1. Tap a song in the list.\n2. If one of the results is right, tap “Use” and then “Accept changes”.\n3. If none is right, fix the fields by hand or tap “Reject”: the song stays as it was.</string>
+    <string name="meta_review_dismiss_all">Reject all</string>
+    <string name="meta_review_dismiss_all_title">Reject all pending changes?</string>
+    <string name="msg_review_dismissed">Rejected: %1$d songs stay as they were</string>
+    <string name="meta_review_notice_title">This song needs your approval</string>
+    <string name="meta_review_notice_none">No source found this song, so there\'s nothing to apply. You can type the data by hand and tap “Accept changes”, fix the title or artist and search again, or tap “Reject” to leave the song as it is.</string>
+    <plurals name="meta_review_title">
+        <item quantity="one">%d song waits for your approval</item>
+        <item quantity="other">%d songs wait for your approval</item>
+    </plurals>
+    <plurals name="meta_review_dismiss_all_body">
+        <item quantity="one">%d song will stop waiting for approval and stay as it is. Nothing is written to your files; you can complete its metadata later.</item>
+        <item quantity="other">%d songs will stop waiting for approval and stay as they are. Nothing is written to your files; you can complete their metadata later.</item>
+    </plurals>
 </resources>
