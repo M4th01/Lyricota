@@ -1,0 +1,15 @@
+name: Feedback / Comentario o felicitación
+description: Tell us what you think. / Cuéntanos qué te parece.
+title: "[Feedback] "
+labels: [feedback]
+body:
+  - type: textarea
+    id: message
+    attributes:
+      label: Message / Mensaje
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: App version (optional) / Versión de la app (opcional)

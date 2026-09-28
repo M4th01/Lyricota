@@ -67,6 +67,23 @@ class MainActivity : ComponentActivity() {
         super.attachBaseContext(LocaleHelper.wrap(newBase, Settings(newBase).language))
     }
 
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        handleShare(intent)
+    }
+
+    /** Canción compartida o abierta con Lyricota desde otra app. */
+    private fun handleShare(intent: android.content.Intent?) {
+        val uri: android.net.Uri? = when (intent?.action) {
+            android.content.Intent.ACTION_SEND ->
+                if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(android.content.Intent.EXTRA_STREAM, android.net.Uri::class.java)
+                else @Suppress("DEPRECATION") intent.getParcelableExtra(android.content.Intent.EXTRA_STREAM)
+            android.content.Intent.ACTION_VIEW -> intent.data
+            else -> null
+        }
+        uri?.let(vm::openShared)
+    }
+
     private fun changeLanguage(language: AppLanguage) {
         vm.settings.language = language
         recreate()
@@ -74,6 +91,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (savedInstanceState == null) handleShare(intent)
         setContent {
             val dark = when (vm.theme) {
                 ThemeMode.SYSTEM -> isSystemInDarkTheme()
@@ -112,6 +130,7 @@ private fun AppContent(vm: AppViewModel, onLanguage: (AppLanguage) -> Unit) {
     var aboutOpen by rememberSaveable { mutableStateOf(false) }
     var batchOpen by remember { mutableStateOf(false) }
     var metaBatchOpen by remember { mutableStateOf(false) }
+    var tool by remember { mutableStateOf<com.example.lrcfetcher.ui.Tool?>(null) }
     var tutorialOpen by rememberSaveable { mutableStateOf(!vm.settings.onboardingDone) }
     // Permiso de notificaciones: se explica y se pide al empezar un lote (una vez por sesión).
     var notifAskedThisSession by rememberSaveable { mutableStateOf(false) }
@@ -150,7 +169,8 @@ private fun AppContent(vm: AppViewModel, onLanguage: (AppLanguage) -> Unit) {
     }
 
     if (aboutOpen) {
-        AboutScreen(onBack = { aboutOpen = false })
+        AboutScreen(onBack = { aboutOpen = false }, onFeedback = { tool = com.example.lrcfetcher.ui.Tool.FEEDBACK })
+        if (tool == com.example.lrcfetcher.ui.Tool.FEEDBACK) com.example.lrcfetcher.ui.FeedbackDialog { tool = null }
         return
     }
 
@@ -169,15 +189,24 @@ private fun AppContent(vm: AppViewModel, onLanguage: (AppLanguage) -> Unit) {
                 onOpenAbout = { aboutOpen = true },
                 onOpenMetaBatch = { metaBatchOpen = true },
                 onOpenTutorial = { tutorialOpen = true },
+                onOpenTool = { tool = it },
             )
             is Screen.LyricsView -> LyricsScreen(vm, screen.session, snackbar)
             is Screen.MetadataView -> MetadataScreen(vm, screen.session, snackbar)
+            is Screen.SyncView -> com.example.lrcfetcher.ui.SyncScreen(vm, screen.session)
         }
     }
 
     if (settingsOpen) SettingsSheet(vm, onLanguage = { settingsOpen = false; onLanguage(it) }) { settingsOpen = false }
     if (batchOpen) BatchDialog(vm) { batchOpen = false }
     if (metaBatchOpen) MetadataBatchDialog(vm) { metaBatchOpen = false }
+    when (tool) {
+        com.example.lrcfetcher.ui.Tool.CONVERT -> com.example.lrcfetcher.ui.ConvertDialog(vm) { tool = null }
+        com.example.lrcfetcher.ui.Tool.RENAME -> com.example.lrcfetcher.ui.RenameDialog(vm) { tool = null }
+        com.example.lrcfetcher.ui.Tool.UNDO -> com.example.lrcfetcher.ui.UndoDialog(vm) { tool = null }
+        com.example.lrcfetcher.ui.Tool.FEEDBACK -> com.example.lrcfetcher.ui.FeedbackDialog { tool = null }
+        null -> Unit
+    }
     if (notifRationale) {
         AlertDialog(
             onDismissRequest = { notifRationale = false },

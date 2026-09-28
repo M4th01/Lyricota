@@ -84,9 +84,7 @@ class BatchNotifier(private val context: Context) {
         show(ID_DONE, done(state))
     }
 
-    private fun kindTitle(kind: BatchKind) = context.getString(
-        if (kind == BatchKind.LYRICS) R.string.notif_lyrics_title else R.string.notif_meta_title,
-    )
+    private fun kindTitle(kind: BatchKind) = context.getString(kind.titleRes())
 
     private fun percent(s: BatchState) = if (s.total == 0) 0 else s.done * 100 / s.total
 
@@ -114,12 +112,7 @@ class BatchNotifier(private val context: Context) {
 
     private fun done(s: BatchState): Notification {
         val complete = s.done >= s.total
-        val summary = when (s.kind) {
-            BatchKind.LYRICS ->
-                if (s.failed > 0) context.getString(R.string.batch_summary_errors, s.found, s.notFound, s.failed)
-                else context.getString(R.string.batch_summary, s.found, s.notFound)
-            BatchKind.METADATA -> context.getString(R.string.batch_meta_summary, s.found, s.review)
-        }
+        val summary = s.summary(context.resources)
         val title = context.getString(
             if (complete) R.string.notif_done_title else R.string.notif_cancelled_title,
             kindTitle(s.kind), percent(s),
@@ -171,4 +164,23 @@ class BatchService : Service() {
         }.onFailure { stopSelf() }
         return START_NOT_STICKY
     }
+}
+
+/** Nombre de cada tipo de lote (notificación y aviso de la biblioteca). */
+@androidx.annotation.StringRes
+fun BatchKind.titleRes(): Int = when (this) {
+    BatchKind.LYRICS -> R.string.notif_lyrics_title
+    BatchKind.METADATA -> R.string.notif_meta_title
+    BatchKind.CONVERT -> R.string.batch_convert_title
+    BatchKind.RENAME -> R.string.batch_rename_title
+    BatchKind.UNDO -> R.string.batch_undo_title
+}
+
+/** Resumen de un lote terminado. */
+fun BatchState.summary(res: android.content.res.Resources): String = when (kind) {
+    BatchKind.LYRICS ->
+        if (failed > 0) res.getString(R.string.batch_summary_errors, found, notFound, failed)
+        else res.getString(R.string.batch_summary, found, notFound)
+    BatchKind.METADATA -> res.getString(R.string.batch_meta_summary, found, review)
+    BatchKind.CONVERT, BatchKind.RENAME, BatchKind.UNDO -> res.getString(R.string.batch_generic_summary, found, notFound, failed)
 }

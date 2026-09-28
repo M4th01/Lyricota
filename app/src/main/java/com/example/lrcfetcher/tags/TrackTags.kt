@@ -87,7 +87,7 @@ data class TagInfo(
     val hasLyrics: Boolean = false,
 )
 
-/** Cambios a escribir: null = no tocar esa parte. */
+/** Cambios a escribir: null = no tocar esa parte; lyrics = "" quita la letra incrustada. */
 data class TagChanges(
     val tags: TrackTags? = null,
     val cover: Cover? = null,

@@ -92,7 +92,7 @@ private val libraries = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AboutScreen(onBack: () -> Unit) {
+fun AboutScreen(onBack: () -> Unit, onFeedback: () -> Unit = {}) {
     BackHandler(onBack = onBack)
     val context = LocalContext.current
     val version = remember {
@@ -136,6 +136,12 @@ fun AboutScreen(onBack: () -> Unit) {
             }
 
             item { SupportCard() }
+            item {
+                Heading(stringResource(R.string.feedback_title))
+                Text(stringResource(R.string.feedback_about_body), style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(onClick = onFeedback) { Text(stringResource(R.string.menu_feedback)) }
+            }
 
             item { Heading(stringResource(R.string.about_sources)) }
             sources.forEach { s ->

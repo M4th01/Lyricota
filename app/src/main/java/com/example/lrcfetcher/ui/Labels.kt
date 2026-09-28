@@ -60,6 +60,7 @@ fun MetaFilter.label(): String = stringResource(
         MetaFilter.INCOMPLETE -> R.string.filter_no_metadata
         MetaFilter.REVIEW -> R.string.filter_review
         MetaFilter.NO_COVER -> R.string.filter_no_cover
+        MetaFilter.DUPLICATES -> R.string.filter_duplicates
     },
 )
 

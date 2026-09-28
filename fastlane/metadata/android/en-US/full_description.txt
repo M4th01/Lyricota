@@ -1,0 +1,24 @@
+<p>Lyricota finds <b>synced lyrics</b> (word by word when available) for the music on your phone and saves them into your files, as an embedded tag or as a <i>.lrc</i> file. It also completes your songs' <b>metadata</b>.</p>
+
+<p><b>Lyrics</b></p>
+<ul>
+<li>Searches several public sources at once and picks the best result, word-by-word first.</li>
+<li>Duets (<i>v2:</i>) and backing vocals (<i>[bg: …]</i>) in the Apple Music / AMLL style.</li>
+<li>Romanization for Japanese, Korean and Chinese, aligned to karaoke timing; translations when available.</li>
+<li>Shows the lyrics already saved in the song and lets you compare them with the sources.</li>
+<li>Built-in player with letter-by-letter karaoke highlighting and offset adjustment.</li>
+<li>Paste or import lyrics and sync them by hand, tapping as each line starts.</li>
+<li>Convert between embedded lyrics and .lrc files in bulk.</li>
+</ul>
+
+<p><b>Metadata</b></p>
+<ul>
+<li>Title, album, artists, album artist, composers, genres, year, track and disc numbers, compared across Deezer, Apple Music and MusicBrainz, plus cover image search.</li>
+<li>In bulk, changes are applied only when title and artist match; everything else waits for your approval.</li>
+<li>Detects swapped title/artist, finds duplicates and renames files from their tags.</li>
+<li>Undo the last batch at any time.</li>
+</ul>
+
+<p><b>Privacy</b>: no accounts, ads, analytics or trackers. It only sends the title, artist, album and duration of the song being searched to the lyrics and metadata sources, and checks GitHub for new versions (can be turned off).</p>
+
+<p>Lyrics are not included in the app: they are downloaded on demand for personal use and belong to their authors. Lyricota is not affiliated with any of the services it uses.</p>

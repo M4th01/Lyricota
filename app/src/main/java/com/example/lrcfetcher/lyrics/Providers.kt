@@ -22,9 +22,12 @@ enum class ProviderId(val label: String, val wordSync: Boolean, val voices: Bool
     LRCLIB("LRCLIB", false),
 
     /** La letra que ya tiene la canción (incrustada o .lrc al lado). No es un proveedor de búsqueda. */
-    LOCAL("In the song", false);
+    LOCAL("In the song", false),
 
-    val searchable: Boolean get() = this != LOCAL
+    /** Letra pegada, importada o sincronizada a mano por el usuario. */
+    MANUAL("Manual", false);
+
+    val searchable: Boolean get() = this != LOCAL && this != MANUAL
 
     companion object {
         val SEARCHABLE: List<ProviderId> get() = entries.filter { it.searchable }

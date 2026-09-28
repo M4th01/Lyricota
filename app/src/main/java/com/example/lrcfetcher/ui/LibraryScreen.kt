@@ -38,6 +38,10 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.platform.LocalContext
+import com.example.lrcfetcher.summary
+import com.example.lrcfetcher.titleRes
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -90,6 +94,7 @@ fun LibraryScreen(
     onOpenAbout: () -> Unit,
     onOpenMetaBatch: () -> Unit,
     onOpenTutorial: () -> Unit = {},
+    onOpenTool: (Tool) -> Unit = {},
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     BackHandler(enabled = vm.selectionMode) { vm.clearSelection() }
@@ -98,7 +103,7 @@ fun LibraryScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             if (vm.selectionMode) {
-                SelectionBar(vm, onOpenBatch, onOpenMetaBatch)
+                SelectionBar(vm, onOpenBatch, onOpenMetaBatch, onOpenTool)
             } else {
                 TopAppBar(
                     title = { Text(stringResource(R.string.app_name)) },
@@ -131,9 +136,13 @@ fun LibraryScreen(
                                     )
                                     DropdownMenuItem(text = { Text(stringResource(R.string.menu_refresh)) }, onClick = { menuOpen = false; vm.rescan() })
                                     DropdownMenuItem(text = { Text(stringResource(R.string.menu_rescan)) }, onClick = { menuOpen = false; vm.rescan(full = true) })
+                                    HorizontalDivider()
+                                    ToolMenuItems(vm) { menuOpen = false; onOpenTool(it) }
+                                    HorizontalDivider()
                                 }
                                 DropdownMenuItem(text = { Text(stringResource(R.string.menu_settings)) }, onClick = { menuOpen = false; onOpenSettings() })
                                 DropdownMenuItem(text = { Text(stringResource(R.string.menu_tutorial)) }, onClick = { menuOpen = false; onOpenTutorial() })
+                                DropdownMenuItem(text = { Text(stringResource(R.string.menu_feedback)) }, onClick = { menuOpen = false; onOpenTool(Tool.FEEDBACK) })
                                 DropdownMenuItem(text = { Text(stringResource(R.string.menu_about)) }, onClick = { menuOpen = false; onOpenAbout() })
                             }
                         }
@@ -282,6 +291,7 @@ private fun LibraryList(vm: AppViewModel, onPickFolder: () -> Unit) {
             TrackRow(
                 track = track,
                 metadata = metadata,
+                showFile = metadata && vm.metaFilter == MetaFilter.DUPLICATES,
                 selectionMode = vm.selectionMode,
                 selected = track.uri in vm.selected,
                 onClick = onClick,
@@ -330,23 +340,14 @@ private fun BatchBanner(vm: AppViewModel) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    val meta = b.kind == BatchKind.METADATA
+                    val res = LocalContext.current.resources
                     Text(
-                        stringResource(
-                            when {
-                                meta && b.running -> R.string.batch_meta_running
-                                b.running -> R.string.batch_running
-                                else -> R.string.batch_finished
-                            },
-                            b.done, b.total,
-                        ),
+                        if (b.running) stringResource(R.string.batch_progress, stringResource(b.kind.titleRes()), b.done, b.total)
+                        else stringResource(R.string.batch_finished, b.done, b.total),
                         style = MaterialTheme.typography.titleSmall,
                     )
                     Text(
-                        if (b.running && b.current.isNotBlank()) b.current
-                        else if (meta) stringResource(R.string.batch_meta_summary, b.found, b.review)
-                        else if (b.failed > 0) stringResource(R.string.batch_summary_errors, b.found, b.notFound, b.failed)
-                        else stringResource(R.string.batch_summary, b.found, b.notFound),
+                        if (b.running && b.current.isNotBlank()) b.current else b.summary(res),
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -354,7 +355,12 @@ private fun BatchBanner(vm: AppViewModel) {
                     )
                 }
                 if (b.running) TextButton(onClick = vm::cancelBatch) { Text(stringResource(R.string.stop)) }
-                else IconButton(onClick = vm::dismissBatchSummary) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.close)) }
+                else {
+                    if (b.kind != BatchKind.UNDO && vm.lastBackup != null) {
+                        TextButton(onClick = vm::undoLastBatch) { Text(stringResource(R.string.undo)) }
+                    }
+                    IconButton(onClick = vm::dismissBatchSummary) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.close)) }
+                }
             }
             if (b.running) {
                 Spacer(Modifier.height(8.dp))
@@ -416,7 +422,8 @@ private fun ReviewBanner(vm: AppViewModel) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SelectionBar(vm: AppViewModel, onOpenBatch: () -> Unit, onOpenMetaBatch: () -> Unit) {
+private fun SelectionBar(vm: AppViewModel, onOpenBatch: () -> Unit, onOpenMetaBatch: () -> Unit, onOpenTool: (Tool) -> Unit) {
+    var menuOpen by remember { mutableStateOf(false) }
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
         navigationIcon = {
@@ -443,8 +450,29 @@ private fun SelectionBar(vm: AppViewModel, onOpenBatch: () -> Unit, onOpenMetaBa
             ) {
                 Icon(Icons.Filled.Sell, contentDescription = stringResource(R.string.action_metadata))
             }
+            Box {
+                IconButton(onClick = { menuOpen = true }) { Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.cd_more)) }
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    ToolMenuItems(vm, includeUndo = false) { menuOpen = false; onOpenTool(it) }
+                }
+            }
         },
     )
+}
+
+/** Convertir letras, renombrar archivos y deshacer el último lote. */
+@Composable
+private fun ToolMenuItems(vm: AppViewModel, includeUndo: Boolean = true, onPick: (Tool) -> Unit) {
+    val idle = !vm.batch.running
+    DropdownMenuItem(text = { Text(stringResource(R.string.menu_convert)) }, enabled = idle, onClick = { onPick(Tool.CONVERT) })
+    DropdownMenuItem(text = { Text(stringResource(R.string.menu_rename)) }, enabled = idle, onClick = { onPick(Tool.RENAME) })
+    if (includeUndo) {
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.menu_undo)) },
+            enabled = idle && vm.lastBackup != null,
+            onClick = { onPick(Tool.UNDO) },
+        )
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -452,6 +480,7 @@ private fun SelectionBar(vm: AppViewModel, onOpenBatch: () -> Unit, onOpenMetaBa
 private fun TrackRow(
     track: Track,
     metadata: Boolean,
+    showFile: Boolean = false,
     selectionMode: Boolean,
     selected: Boolean,
     onClick: () -> Unit,
@@ -479,7 +508,18 @@ private fun TrackRow(
                 sub, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (metadata) MetadataStatus(track)
+            if (showFile) {
+                // Para decidir qué copia conservar: archivo, formato, tamaño y duración.
+                Text(
+                    listOfNotNull(
+                        track.fileName,
+                        "%.1f MB".format(track.size / 1_048_576.0),
+                        track.durationMs?.let { com.example.lrcfetcher.lyrics.LrcWriter.formatTime(it).substringBeforeLast('.') },
+                    ).joinToString(" · "),
+                    style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.tertiary,
+                )
+            } else if (metadata) MetadataStatus(track)
         }
         Spacer(Modifier.width(12.dp))
         if (!metadata) {

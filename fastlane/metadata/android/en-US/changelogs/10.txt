@@ -1,0 +1,8 @@
+• Sync lyrics by hand, and paste or import lyrics (.lrc / .txt)
+• Convert between embedded lyrics and .lrc files in bulk
+• Undo the last batch
+• Rename files from their tags
+• Find duplicate songs
+• Share or open a song with Lyricota from other apps
+• Send feedback from the app
+• Clearer metadata approval and "Reject all"

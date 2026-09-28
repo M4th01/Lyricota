@@ -90,11 +90,11 @@ object TagWriter {
         fun idOf(f: ByteArray) = String(f, 0, 4, Charsets.ISO_8859_1)
         if (changes.tags != null) keep.removeAll { idOf(it) in ID3_MANAGED }
         if (changes.cover != null) keep.removeAll { idOf(it) == "APIC" }
-        if (changes.lyrics != null) keep.removeAll { idOf(it) == "USLT" }
+        if (changes.lyrics != null) keep.removeAll { idOf(it) == "USLT" || idOf(it) == "SYLT" }
 
         changes.tags?.let { keep += tagFrames(version, it.normalized()) }
         changes.cover?.let { keep += apicFrame(version, it) }
-        changes.lyrics?.let { keep += usltFrame(version, it) }
+        changes.lyrics?.takeIf { it.isNotEmpty() }?.let { keep += usltFrame(version, it) }
 
         return listOf(Piece.Bytes(buildId3(version, keep)), Piece.Range(skip, len))
     }
@@ -188,6 +188,9 @@ object TagWriter {
 
     // ================================================================== FLAC
 
+    /** Al escribir (o quitar) la letra se reemplazan todas estas claves. */
+    private val VORBIS_LYRICS = setOf("LYRICS", "UNSYNCEDLYRICS", "UNSYNCED LYRICS", "SYNCEDLYRICS")
+
     private val VORBIS_MANAGED = setOf(
         "TITLE", "ALBUM", "ARTIST", "ALBUMARTIST", "ALBUM ARTIST", "ALBUM_ARTIST", "COMPOSER", "GENRE", "DATE", "YEAR",
         "TRACKNUMBER", "TRACKTOTAL", "TOTALTRACKS", "DISCNUMBER", "DISCTOTAL", "TOTALDISCS",
@@ -240,12 +243,12 @@ object TagWriter {
                 val c = data.copyOfRange(p, p + cl); p += cl
                 val key = String(c, 0, minOf(c.size, 32), Charsets.UTF_8).substringBefore('=').uppercase()
                 val drop = (changes.tags != null && key in VORBIS_MANAGED) ||
-                    (changes.lyrics != null && (key == "LYRICS" || key == "UNSYNCEDLYRICS"))
+                    (changes.lyrics != null && key in VORBIS_LYRICS)
                 if (!drop) comments += c
             }
         }
         changes.tags?.let { t -> vorbisEntries(t.normalized()).forEach { comments += it.toByteArray(Charsets.UTF_8) } }
-        changes.lyrics?.let { comments += "LYRICS=$it".toByteArray(Charsets.UTF_8) }
+        changes.lyrics?.takeIf { it.isNotEmpty() }?.let { comments += "LYRICS=$it".toByteArray(Charsets.UTF_8) }
 
         val vc = ByteArrayOutputStream()
         val vendorBytes = vendor.toByteArray(Charsets.UTF_8)
@@ -330,7 +333,7 @@ object TagWriter {
             }.map { it.second }.toMutableList()
             changes.tags?.let { kept += mp4Items(it.normalized()) }
             changes.cover?.let { kept += item("covr", if (it.mime == "image/png") 14 else 13, it.data) }
-            changes.lyrics?.let { kept += textItem("©lyr", it) }
+            changes.lyrics?.takeIf { it.isNotEmpty() }?.let { kept += textItem("©lyr", it) }
             kept
         }
         val delta = newMoov.size - moov.size
@@ -570,12 +573,12 @@ object TagWriter {
             val c = old.copyOfRange(p, p + cl); p += cl
             val key = String(c, 0, minOf(c.size, 32), Charsets.UTF_8).substringBefore('=').uppercase()
             val drop = (changes.tags != null && key in VORBIS_MANAGED) ||
-                (changes.lyrics != null && (key == "LYRICS" || key == "UNSYNCEDLYRICS")) ||
+                (changes.lyrics != null && key in VORBIS_LYRICS) ||
                 (changes.cover != null && (key == "METADATA_BLOCK_PICTURE" || key == "COVERART" || key == "COVERARTMIME"))
             if (!drop) comments += c
         }
         changes.tags?.let { t -> vorbisEntries(t.normalized()).forEach { comments += it.toByteArray(Charsets.UTF_8) } }
-        changes.lyrics?.let { comments += "LYRICS=$it".toByteArray(Charsets.UTF_8) }
+        changes.lyrics?.takeIf { it.isNotEmpty() }?.let { comments += "LYRICS=$it".toByteArray(Charsets.UTF_8) }
         changes.cover?.let {
             val b64 = java.util.Base64.getEncoder().encodeToString(pictureBlock(it))
             comments += "METADATA_BLOCK_PICTURE=$b64".toByteArray(Charsets.UTF_8)

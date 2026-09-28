@@ -1,0 +1,31 @@
+name: Bug report / Reportar un error
+description: Something doesn't work as expected. / Algo no funciona como debería.
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened? / ¿Qué pasó?
+      description: What did you do, what happened and what did you expect? / ¿Qué hiciste, qué pasó y qué esperabas?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / Pasos para reproducirlo
+      placeholder: |
+        1. Open …
+        2. Tap …
+        3. …
+  - type: input
+    id: device
+    attributes:
+      label: App and device version / Versión de la app y del dispositivo
+      description: Settings → About shows the app version. / Ajustes → Acerca de muestra la versión.
+      placeholder: Lyricota 2.7 · Android 14 · Pixel 7
+  - type: markdown
+    attributes:
+      value: |
+        Please don't paste song lyrics here: they are copyrighted. The song title and artist are enough.
+        Por favor no pegues letras de canciones aquí: tienen derechos de autor. Basta con el título y el artista.

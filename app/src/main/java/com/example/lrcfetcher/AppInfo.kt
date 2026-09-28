@@ -9,6 +9,9 @@ object AppInfo {
     /** Página de Ko-fi del autor (botón "Buy a small coffee"). */
     const val KOFI_URL = "https://ko-fi.com/A0A618Z66T"
 
+    /** Correo para "Deja tu comentario" ("" = sólo GitHub). */
+    const val FEEDBACK_EMAIL = ""
+
     /** Contacto que se envía en el User-Agent a MusicBrainz y GitHub, como piden sus APIs. */
     const val CONTACT_URL = REPO_URL
 

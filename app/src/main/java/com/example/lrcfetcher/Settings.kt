@@ -10,7 +10,7 @@ enum class SaveTarget { EMBED, LRC, BOTH }
 enum class LibraryFilter { ALL, MISSING, HAS }
 
 /** Filtros de la sección Metadatos. */
-enum class MetaFilter { ALL, INCOMPLETE, REVIEW, NO_COVER }
+enum class MetaFilter { ALL, INCOMPLETE, REVIEW, NO_COVER, DUPLICATES }
 
 /** Secciones de la pantalla principal (navegación inferior). */
 enum class Section { LYRICS, METADATA, ONLINE }

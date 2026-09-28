@@ -1,0 +1,24 @@
+<p>Lyricota busca <b>letras sincronizadas</b> (palabra por palabra cuando existen) para la música de tu teléfono y las guarda en tus archivos, incrustadas o como archivo <i>.lrc</i>. También completa los <b>metadatos</b> de tus canciones.</p>
+
+<p><b>Letras</b></p>
+<ul>
+<li>Busca en varias fuentes públicas a la vez y elige el mejor resultado, primero palabra por palabra.</li>
+<li>Dúos (<i>v2:</i>) y coros (<i>[bg: …]</i>) al estilo de Apple Music / AMLL.</li>
+<li>Romanización de japonés, coreano y chino alineada al karaoke; traducciones cuando existen.</li>
+<li>Muestra la letra que ya tiene la canción y te deja compararla con las fuentes.</li>
+<li>Reproductor con karaoke letra por letra y ajuste de desfase.</li>
+<li>Pega o importa letras y sincronízalas a mano, tocando cuando empieza cada línea.</li>
+<li>Convierte en lote entre letra incrustada y archivos .lrc.</li>
+</ul>
+
+<p><b>Metadatos</b></p>
+<ul>
+<li>Título, álbum, artistas, artista del álbum, compositores, géneros, año, pista y disco, comparando Deezer, Apple Music y MusicBrainz, más búsqueda de portada.</li>
+<li>Por lotes, los cambios sólo se aplican si el título y el artista coinciden; el resto espera tu aprobación.</li>
+<li>Detecta título y artista intercambiados, encuentra duplicados y renombra archivos según sus etiquetas.</li>
+<li>Deshaz el último lote cuando quieras.</li>
+</ul>
+
+<p><b>Privacidad</b>: sin cuentas, anuncios, analíticas ni rastreadores. Sólo envía el título, artista, álbum y duración de la canción que se busca a las fuentes de letras y metadatos, y consulta GitHub para buscar versiones nuevas (se puede desactivar).</p>
+
+<p>Las letras no vienen en la app: se descargan cuando las pides, para uso personal, y pertenecen a sus autores. Lyricota no está afiliada a ninguno de los servicios que usa.</p>

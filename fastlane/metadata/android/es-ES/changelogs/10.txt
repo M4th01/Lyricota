@@ -1,0 +1,8 @@
+• Sincroniza letras a mano, y pega o importa letras (.lrc / .txt)
+• Convierte en lote entre letra incrustada y archivos .lrc
+• Deshaz el último lote
+• Renombra archivos según sus etiquetas
+• Encuentra canciones duplicadas
+• Comparte o abre una canción con Lyricota desde otras apps
+• Envía comentarios desde la app
+• Aprobación de metadatos más clara y «Rechazar todas»

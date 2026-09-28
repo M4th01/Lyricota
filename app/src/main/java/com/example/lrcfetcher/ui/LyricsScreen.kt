@@ -111,6 +111,7 @@ fun LyricsScreen(vm: AppViewModel, session: LyricsSession, snackbar: SnackbarHos
     var menuOpen by remember { mutableStateOf(false) }
     var editOpen by remember { mutableStateOf(false) }
     var offsetOpen by remember { mutableStateOf(false) }
+    var importOpen by remember { mutableStateOf(false) }
 
     val found = session.current
     val player = session.track?.let { t -> remember(t.uri) { PreviewPlayer(context, t.androidUri) } }
@@ -162,6 +163,16 @@ fun LyricsScreen(vm: AppViewModel, session: LyricsSession, snackbar: SnackbarHos
                                 )
                             }
                             DropdownMenuItem(text = { Text(stringResource(R.string.adjust_offset)) }, onClick = { offsetOpen = true; menuOpen = false })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.import_lyrics)) }, onClick = { importOpen = true; menuOpen = false })
+                            if (session.track != null) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.sync_manual)) },
+                                    onClick = {
+                                        menuOpen = false
+                                        if (lyrics != null) vm.openSyncEditor(session) else importOpen = true
+                                    },
+                                )
+                            }
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.export_lrc)) },
                                 enabled = lyrics != null,
@@ -213,6 +224,7 @@ fun LyricsScreen(vm: AppViewModel, session: LyricsSession, snackbar: SnackbarHos
                     voices = vm.includeVoices,
                     source = found?.let {
                         if (it.lyrics.source == ProviderId.LOCAL) stringResource(R.string.lyrics_local_source)
+                        else if (it.lyrics.source == ProviderId.MANUAL) stringResource(R.string.source_manual_long)
                         else "${it.lyrics.source.label} · ${it.candidate.artist} — ${it.candidate.title}"
                     },
                     positionMs = player?.takeIf { it.started }?.positionMs?.minus(session.offsetMs),
@@ -220,15 +232,22 @@ fun LyricsScreen(vm: AppViewModel, session: LyricsSession, snackbar: SnackbarHos
                     onLineClick = player?.let { p -> { line -> p.seekTo(line.start + session.offsetMs) } },
                 )
                 stillLoading && !showingLocal -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-                else -> EmptyState(
-                    title = stringResource(R.string.not_found_title),
-                    body = stringResource(R.string.not_found_body),
-                )
+                else -> Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    EmptyState(
+                        title = stringResource(R.string.not_found_title),
+                        body = stringResource(if (session.track != null) R.string.not_found_body_manual else R.string.not_found_body),
+                    )
+                    OutlinedButton(onClick = { importOpen = true }) { Text(stringResource(R.string.import_lyrics)) }
+                }
             }
         }
     }
 
-    if (editOpen) EditQueryDialog(session, onDismiss = { editOpen = false }) { title, artist ->
+    if (importOpen) ImportLyricsDialog(onDismiss = { importOpen = false }) { text ->
+        importOpen = false
+        vm.importLyrics(session, text)
+    }
+        if (editOpen) EditQueryDialog(session, onDismiss = { editOpen = false }) { title, artist ->
         editOpen = false
         vm.editQuery(session, title, artist)
     }
@@ -258,7 +277,8 @@ private fun ProviderChips(vm: AppViewModel, session: LyricsSession) {
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        val ids = vm.providerOrder.filter { session.results.containsKey(it) }
+        val ids = listOf(ProviderId.MANUAL).filter { session.results.containsKey(it) } +
+            vm.providerOrder.filter { session.results.containsKey(it) }
         items(ids, key = { it.name }) { id ->
             val r = session.results[id]
             val found = r as? ProviderResult.Found
@@ -269,7 +289,11 @@ private fun ProviderChips(vm: AppViewModel, session: LyricsSession) {
                 label = {
                     Text(
                         when (r) {
-                            is ProviderResult.Found -> stringResource(R.string.provider_chip, id.label, r.lyrics.sync.label())
+                            is ProviderResult.Found -> stringResource(
+                                R.string.provider_chip,
+                                if (id == ProviderId.MANUAL) stringResource(R.string.source_manual) else id.label,
+                                r.lyrics.sync.label(),
+                            )
                             ProviderResult.Loading -> id.label
                             else -> "${id.label} · —"
                         },
@@ -337,7 +361,7 @@ private fun <T> ChoiceChip(label: String, options: List<Pair<String, T>>, onPick
 }
 
 @Composable
-private fun OffsetRow(session: LyricsSession, onClose: () -> Unit) {
+private fun OffsetRow(session: LyricsSession, onClose: () -> Unit) = Column {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -351,6 +375,14 @@ private fun OffsetRow(session: LyricsSession, onClose: () -> Unit) {
         )
         TextButton(onClick = { session.offsetMs += 100 }) { Text("+0.1 s") }
         TextButton(onClick = { session.offsetMs = 0; onClose() }) { Text(stringResource(R.string.offset_remove)) }
+    }
+    if (session.offsetMs != 0L) {
+        Text(
+            stringResource(R.string.offset_saved_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
     }
 }
 
@@ -560,4 +592,36 @@ private fun copy(context: Context, text: String) {
 private fun share(context: Context, text: String) {
     val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
     context.startActivity(Intent.createChooser(send, context.getString(R.string.share_title)))
+}
+
+/** Pegar una letra o abrir un .lrc / .txt del teléfono. */
+@Composable
+private fun ImportLyricsDialog(onDismiss: () -> Unit, onImport: (String) -> Unit) {
+    val context = LocalContext.current
+    var text by remember { mutableStateOf("") }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) } }
+                .getOrNull()?.let { text = it }
+        }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.import_lyrics)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.import_body), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedTextField(
+                    value = text, onValueChange = { text = it }, minLines = 6, maxLines = 12,
+                    placeholder = { Text(stringResource(R.string.import_placeholder)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedButton(onClick = { picker.launch(arrayOf("text/*", "application/octet-stream", "application/x-subrip")) }) {
+                    Text(stringResource(R.string.import_file))
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { onImport(text) }, enabled = text.isNotBlank()) { Text(stringResource(R.string.import_use)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
 }

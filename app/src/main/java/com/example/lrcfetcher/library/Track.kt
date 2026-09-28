@@ -76,13 +76,13 @@ data class Track(
             swapSuspected = o.optBoolean("swap"),
         )
 
-        private fun tagsToJson(t: TrackTags): JSONObject = JSONObject()
+        internal fun tagsToJson(t: TrackTags): JSONObject = JSONObject()
             .putOpt("title", t.title).putOpt("album", t.album).put("artists", JSONArray(t.artists))
             .putOpt("albumArtist", t.albumArtist).put("composers", JSONArray(t.composers)).put("genres", JSONArray(t.genres))
             .putOpt("year", t.year).putOpt("track", t.trackNumber).putOpt("trackTotal", t.trackTotal)
             .putOpt("disc", t.discNumber).putOpt("discTotal", t.discTotal)
 
-        private fun tagsFromJson(o: JSONObject): TrackTags {
+        internal fun tagsFromJson(o: JSONObject): TrackTags {
             fun s(k: String) = if (o.isNull(k)) null else o.optString(k).ifBlank { null }
             fun i(k: String) = if (o.isNull(k) || !o.has(k)) null else o.optInt(k).takeIf { it > 0 }
             fun l(k: String) = o.optJSONArray(k)?.let { a -> (0 until a.length()).map { a.optString(it) } }.orEmpty()

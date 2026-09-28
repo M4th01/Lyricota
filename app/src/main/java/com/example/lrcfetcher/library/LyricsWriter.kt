@@ -44,18 +44,31 @@ class LyricsWriter(private val context: Context) {
      * al lado. null si no tiene ninguna. Bloqueante.
      */
     fun readLyrics(treeUri: Uri, track: Track): String? {
-        val embedded = runCatching {
-            context.contentResolver.openFileDescriptor(track.androidUri, "r")?.use {
-                FileInputStream(it.fileDescriptor).channel.use { ch -> TagReader.readLyrics(ByteSource.of(ch), track.ext) }
-            }
-        }.getOrNull()
+        val embedded = readEmbeddedLyrics(track)
         if (!embedded.isNullOrBlank()) return embedded
-        val lrc = track.lrcDocId ?: return null
-        return runCatching {
-            context.contentResolver.openInputStream(DocumentsContract.buildDocumentUriUsingTree(treeUri, lrc))
-                ?.use { it.readBytes().toString(Charsets.UTF_8) }
-        }.getOrNull()?.trimStart('﻿')?.takeIf { it.isNotBlank() }
+        return track.lrcDocId?.let { readSidecar(treeUri, it) }
     }
+
+    /** Sólo la letra incrustada en las etiquetas. Bloqueante. */
+    fun readEmbeddedLyrics(track: Track): String? = runCatching {
+        context.contentResolver.openFileDescriptor(track.androidUri, "r")?.use {
+            FileInputStream(it.fileDescriptor).channel.use { ch -> TagReader.readLyrics(ByteSource.of(ch), track.ext) }
+        }
+    }.getOrNull()?.takeIf { it.isNotBlank() }
+
+    /** Contenido de un .lrc. Bloqueante. */
+    fun readSidecar(treeUri: Uri, docId: String): String? = runCatching {
+        context.contentResolver.openInputStream(DocumentsContract.buildDocumentUriUsingTree(treeUri, docId))
+            ?.use { it.readBytes().toString(Charsets.UTF_8) }
+    }.getOrNull()?.trimStart('﻿')?.takeIf { it.isNotBlank() }
+
+    fun deleteSidecar(treeUri: Uri, docId: String): Boolean = runCatching {
+        DocumentsContract.deleteDocument(context.contentResolver, DocumentsContract.buildDocumentUriUsingTree(treeUri, docId))
+    }.getOrDefault(false)
+
+    /** Renombra un documento; devuelve su Uri nueva (puede cambiar con el nombre). */
+    fun rename(documentUri: Uri, newName: String): Uri? =
+        DocumentsContract.renameDocument(context.contentResolver, documentUri, newName)
 
     // ------------------------------------------------------------------ .lrc al lado
 

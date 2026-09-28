@@ -37,6 +37,9 @@
 - Fast, incremental library scan: only new or changed songs are read again.
 - **Lyrics already in the song**: shows the embedded lyrics (or the `.lrc` next to the file) even when no source finds the song, with a switch to compare them with what the sources found.
 - Built-in player with **letter-by-letter karaoke** highlighting to check the sync and adjust the offset.
+- **Sync by hand**: paste or import lyrics (`.lrc` / `.txt`) and tap as each line starts while the song plays. Also useful to fix a line that is off.
+- **Tools**: convert between embedded lyrics and `.lrc` files in bulk, rename files from their tags, find duplicates, and **undo the last batch**.
+- **Share with Lyricota** (or *Open with*) from any music player or file manager to jump straight to that song's lyrics.
 - First-run tutorial that explains each permission before asking for it.
 - In-app update notice with one-tap download from GitHub Releases.
 - Interface in English, Spanish, Portuguese and Japanese.
@@ -99,6 +102,14 @@ Requires JDK 17 and the Android SDK (API 34).
 ```
 
 Tests that hit the real services only run with `LIVE=true`.
+
+## Feedback
+
+Found a bug, have an idea or want to say thanks? Use **⋮ → Send feedback** in the app, or [open an issue](../../issues/new/choose). The app never sends anything by itself: it opens GitHub with your message written so you can review and send it.
+
+## Translations
+
+Lyricota is available in English, Spanish, Portuguese and Japanese. Strings live in `app/src/main/res/values*/strings.xml`. Corrections and new languages are welcome as pull requests.
 
 ## Support
 

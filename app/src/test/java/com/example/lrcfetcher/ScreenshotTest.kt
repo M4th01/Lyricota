@@ -117,7 +117,7 @@ class ScreenshotTest {
 
     @Test
     fun about() {
-        compose.setContent { LyricotaTheme(false) { com.example.lrcfetcher.ui.AboutScreen {} } }
+        compose.setContent { LyricotaTheme(false) { com.example.lrcfetcher.ui.AboutScreen(onBack = {}) } }
         compose.onRoot().captureRoboImage("build/outputs/roborazzi/about.png")
     }
 
@@ -180,6 +180,31 @@ class ScreenshotTest {
         session.selected = ProviderId.LOCAL
         compose.setContent { LyricotaTheme(true) { LyricsScreen(vm, session, SnackbarHostState()) } }
         compose.onRoot().captureRoboImage("build/outputs/roborazzi/lyrics_in_song.png")
+    }
+
+    @Test
+    @Config(qualifiers = "es-w400dp-h860dp-xhdpi")
+    fun syncEditor() {
+        val vm = vm()
+        val session = LyricsSession(vm.tracks[1], TrackQuery("Walking Home", "The Examples"), null)
+        val sync = SyncSession(
+            session,
+            listOf(
+                SyncLine("Primera línea inventada", 1200), SyncLine("Segunda línea", 4800),
+                SyncLine("Tercera, la que sigue", null), SyncLine("Cuarta", null), SyncLine("Quinta y última", null),
+            ),
+        )
+        compose.setContent { LyricotaTheme(false) { com.example.lrcfetcher.ui.SyncScreen(vm, sync) } }
+        compose.onRoot().captureRoboImage("build/outputs/roborazzi/sync_editor.png")
+    }
+
+    @Test
+    @Config(qualifiers = "es-w400dp-h860dp-xhdpi")
+    fun renameDialog() {
+        val vm = vm()
+        vm.tracks = vm.tracks.map { it.copy(tags = com.example.lrcfetcher.tags.TrackTags(title = it.title, artists = listOfNotNull(it.artist), trackNumber = 1)) }
+        compose.setContent { LyricotaTheme(false) { com.example.lrcfetcher.ui.RenameDialog(vm) {} } }
+        compose.onAllNodes(androidx.compose.ui.test.isRoot())[1].captureRoboImage("build/outputs/roborazzi/rename.png")
     }
 
     @Test

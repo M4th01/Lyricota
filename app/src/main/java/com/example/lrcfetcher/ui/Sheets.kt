@@ -233,3 +233,108 @@ fun MetadataBatchDialog(vm: AppViewModel, onDismiss: () -> Unit) {
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
+
+/** Herramientas del menú de la biblioteca. */
+enum class Tool { CONVERT, RENAME, UNDO, FEEDBACK }
+
+/** Convertir letras en lote: incrustada → .lrc o .lrc → incrustada. */
+@Composable
+fun ConvertDialog(vm: AppViewModel, onDismiss: () -> Unit) {
+    val selectedCount = vm.selected.size
+    var onlySelected by remember { mutableStateOf(selectedCount > 0) }
+    var toLrc by remember { mutableStateOf(true) }
+    val pool = if (onlySelected) vm.tracks.filter { it.uri in vm.selected } else vm.tracks
+    val embedded = pool.count { it.hasEmbeddedLyrics }
+    val sidecars = pool.count { it.lrcDocId != null && it.ext in com.example.lrcfetcher.library.LyricsWriter.EMBEDDABLE }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.convert_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(stringResource(R.string.convert_body), style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(4.dp))
+                RadioRow(stringResource(R.string.convert_to_lrc, embedded), toLrc) { toLrc = true }
+                RadioRow(stringResource(R.string.convert_to_embedded, sidecars), !toLrc) { toLrc = false }
+                if (selectedCount > 0) {
+                    Row(Modifier.clickable { onlySelected = !onlySelected }, verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = onlySelected, onCheckedChange = { onlySelected = it })
+                        Text(stringResource(R.string.batch_selected, selectedCount))
+                    }
+                }
+                Hint(stringResource(R.string.undo_hint))
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { vm.startConvert(toLrc, onlySelected); onDismiss() }, enabled = if (toLrc) embedded > 0 else sidecars > 0) {
+                Text(stringResource(R.string.start))
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
+}
+
+/** Renombrar archivos según sus etiquetas. */
+@Composable
+fun RenameDialog(vm: AppViewModel, onDismiss: () -> Unit) {
+    val selectedCount = vm.selected.size
+    var onlySelected by remember { mutableStateOf(selectedCount > 0) }
+    var pattern by remember { mutableStateOf(com.example.lrcfetcher.library.RenamePattern.ARTIST_TITLE) }
+    val pool = if (onlySelected) vm.tracks.filter { it.uri in vm.selected } else vm.tracks
+    val tagged = pool.filter { it.hasTaggedIdentity }
+    // Vista previa con una canción real de la biblioteca.
+    val sample = tagged.firstOrNull { pattern.format(it.tags).isNotBlank() }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.rename_title)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(stringResource(R.string.rename_body), style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(4.dp))
+                com.example.lrcfetcher.library.RenamePattern.entries.forEach { p ->
+                    RadioRow(p.example + ".mp3", pattern == p) { pattern = p }
+                }
+                if (selectedCount > 0) {
+                    Row(Modifier.clickable { onlySelected = !onlySelected }, verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = onlySelected, onCheckedChange = { onlySelected = it })
+                        Text(stringResource(R.string.batch_selected, selectedCount))
+                    }
+                }
+                if (sample != null) {
+                    Hint(stringResource(R.string.rename_preview, sample.fileName, pattern.format(sample.tags) + "." + sample.fileName.substringAfterLast('.')))
+                }
+                Hint(stringResource(R.string.rename_note, tagged.size, pool.size - tagged.size))
+                Hint(stringResource(R.string.undo_hint))
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { vm.startRename(pattern, onlySelected); onDismiss() }, enabled = tagged.isNotEmpty()) {
+                Text(stringResource(R.string.start))
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
+}
+
+/** Confirmación para deshacer el último lote. */
+@Composable
+fun UndoDialog(vm: AppViewModel, onDismiss: () -> Unit) {
+    val data = vm.lastBackup ?: run { onDismiss(); return }
+    val kind = stringResource(
+        when (data.kind) {
+            com.example.lrcfetcher.library.BackupKind.LYRICS -> R.string.notif_lyrics_title
+            com.example.lrcfetcher.library.BackupKind.METADATA -> R.string.notif_meta_title
+            com.example.lrcfetcher.library.BackupKind.CONVERT -> R.string.batch_convert_title
+            com.example.lrcfetcher.library.BackupKind.RENAME -> R.string.batch_rename_title
+        },
+    )
+    val date = remember(data.time) {
+        java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(java.util.Date(data.time))
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.undo_title)) },
+        text = { Text(stringResource(R.string.undo_body, kind, date, data.entries.size)) },
+        confirmButton = { TextButton(onClick = { vm.undoLastBatch(); onDismiss() }) { Text(stringResource(R.string.undo)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
+}

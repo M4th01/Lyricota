@@ -9,6 +9,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.lrcfetcher.library.BackupEntry
+import com.example.lrcfetcher.library.BackupKind
+import com.example.lrcfetcher.library.BatchBackup
+import com.example.lrcfetcher.library.BatchBackupData
+import com.example.lrcfetcher.library.RenamePattern
+import android.provider.DocumentsContract
 import com.example.lrcfetcher.library.LibraryCache
 import com.example.lrcfetcher.library.LibraryScanner
 import com.example.lrcfetcher.library.LyricsWriter
@@ -61,7 +67,7 @@ data class ScanState(
     val total: Int = 0,
 )
 
-enum class BatchKind { LYRICS, METADATA }
+enum class BatchKind { LYRICS, METADATA, CONVERT, RENAME, UNDO }
 
 /** Alcance del lote de metadatos. */
 enum class MetaScope { SELECTED, ALL, MISSING }
@@ -83,6 +89,21 @@ sealed interface Screen {
     data object Library : Screen
     data class LyricsView(val session: LyricsSession) : Screen
     data class MetadataView(val session: MetadataSession) : Screen
+    data class SyncView(val session: SyncSession) : Screen
+}
+
+/** Una línea del editor de sincronización ([start] null = aún sin marcar). */
+class SyncLine(text: String, start: Long?) {
+    var text by mutableStateOf(text)
+    var start by mutableStateOf(start)
+}
+
+/** Estado del editor "Sincronizar a mano" (vuelve a [parent] al terminar). */
+class SyncSession(val parent: LyricsSession, lines: List<SyncLine>) {
+    val lines = androidx.compose.runtime.mutableStateListOf<SyncLine>().apply { addAll(lines) }
+    /** Línea que se marcará con el próximo toque. */
+    var cursor by mutableStateOf(lines.indexOfFirst { it.start == null }.let { if (it < 0) lines.size else it })
+    val remaining: Int get() = lines.count { it.start == null }
 }
 
 /** Estado de la pantalla de letra de una canción. */
@@ -160,6 +181,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val cache = LibraryCache(app)
     private val scanner = LibraryScanner(app)
     private val writer = LyricsWriter(app)
+    private val backup = BatchBackup(app)
 
     // ---- ajustes observables
     var theme by mutableStateOf(settings.theme)
@@ -253,6 +275,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         BatchNotifier.onCancel = { cancelBatch() }
+        refreshUndo()
         com.example.lrcfetcher.lyrics.providers.AmllProvider.cacheDir = app.cacheDir
         // Cargar el diccionario japonés en segundo plano: la primera romanización es instantánea.
         viewModelScope.launch(Dispatchers.Default) { runCatching { JapaneseRomanizer.warmUp() } }
@@ -394,8 +417,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return searchKeys.second[t.uri].orEmpty()
     }
 
+    /** Misma canción: título y artista iguales (sin "feat.", versiones ni mayúsculas). */
+    fun duplicateKey(t: Track): String =
+        Matching.normalize(Matching.cleanTitle(t.title)) + "|" + Matching.normalize(Matching.cleanArtist(t.artist.orEmpty()))
+
     fun visibleTracks(): List<Track> {
         val q = Matching.normalize(query)
+        val dupes = if (section == Section.METADATA && metaFilter == MetaFilter.DUPLICATES) {
+            tracks.groupBy(::duplicateKey).filter { (k, v) -> v.size > 1 && !k.startsWith("|") }.keys
+        } else emptySet()
         val base = tracks.asSequence()
             .filter {
                 if (section == Section.METADATA) {
@@ -404,6 +434,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         MetaFilter.INCOMPLETE -> it.metadataIncomplete || it.identity != com.example.lrcfetcher.library.Identity.TAGS
                         MetaFilter.REVIEW -> it.needsReview
                         MetaFilter.NO_COVER -> it.metadataLoaded && !it.hasCover
+                        MetaFilter.DUPLICATES -> duplicateKey(it) in dupes
                     }
                 } else {
                     when (filter) {
@@ -414,6 +445,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
             .filter { q.isEmpty() || searchKey(it).contains(q) }
+        // Los duplicados se muestran juntos.
+        if (dupes.isNotEmpty()) return base.sortedWith(compareBy({ duplicateKey(it) }, { -it.size })).toList()
         return when (sort) {
             SortMode.TITLE -> base.sortedBy { it.title.lowercase() }
             SortMode.ARTIST -> base.sortedWith(compareBy({ it.artist?.lowercase() ?: "￿" }, { it.album?.lowercase() }, { it.title.lowercase() }))
@@ -536,6 +569,88 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (lyrics.isEmpty) return null
         val candidate = SongCandidate(ProviderId.LOCAL, track.uri, track.title, track.artist.orEmpty(), track.album, track.durationMs)
         return ProviderResult.Found(candidate, lyrics, 1.0)
+    }
+
+    // ---- "Compartir con Lyricota" / "Abrir con"
+
+    /**
+     * Una canción compartida desde otra app. Si está en la biblioteca se abre su letra; si no,
+     * se buscan letras con sus etiquetas (sin poder guardar: el archivo no es de la carpeta).
+     */
+    fun openShared(uri: Uri) {
+        viewModelScope.launch {
+            // Al abrir la app desde "Compartir", la biblioteca puede estar cargándose.
+            var waited = 0
+            while (tracks.isEmpty() && folderUri != null && scan.running && waited < 6000) { delay(200); waited += 200 }
+            val app = getApplication<Application>()
+            val (name, size) = withContext(Dispatchers.IO) {
+                runCatching {
+                    app.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME, android.provider.OpenableColumns.SIZE), null, null, null)
+                        ?.use { c -> if (c.moveToFirst()) c.getString(0) to (if (c.isNull(1)) null else c.getLong(1)) else null }
+                }.getOrNull() ?: (uri.lastPathSegment to null)
+            }
+            val match = tracks.firstOrNull { it.fileName == name && (size == null || it.size == size) }
+            if (match != null) {
+                openTrack(match)
+                return@launch
+            }
+            val fileName = name.orEmpty()
+            val ext = fileName.substringAfterLast('.', "").lowercase()
+            val tags = withContext(Dispatchers.IO) { runCatching { writer.readTags(uri, ext).tags }.getOrNull() }
+            val guess = Track.guessFromFileName(fileName)
+            val title = tags?.title ?: guess.first
+            if (title.isBlank()) { message = UiText(R.string.msg_shared_unreadable); return@launch }
+            openSession(LyricsSession(null, TrackQuery(title, tags?.artist ?: guess.second, tags?.album, null), null))
+            message = UiText(R.string.msg_shared_not_in_library)
+        }
+    }
+
+    // ---- letra propia: pegar / importar / sincronizar a mano
+
+    /**
+     * Texto pegado o de un archivo (.lrc o .txt). Si ya trae tiempos se usa tal cual; si no, y
+     * hay canción para reproducir, se abre el editor para sincronizarlo.
+     */
+    fun importLyrics(session: LyricsSession, text: String) {
+        val parsed = com.example.lrcfetcher.lyrics.LyricsParsers.parseLrc(text.trimStart('﻿'))
+        if (parsed.lines.none { it.text.isNotBlank() }) { message = UiText(R.string.msg_import_empty); return }
+        if (parsed.sync == SyncType.PLAIN && session.track != null) {
+            openSyncEditor(session, parsed.lines.map { SyncLine(it.text, null) })
+        } else {
+            setManual(session, Lyrics(parsed.lines, parsed.sync, ProviderId.MANUAL, "manual"))
+        }
+    }
+
+    /** Abre el editor con [lines], o con la letra que se está mostrando (conservando sus tiempos). */
+    fun openSyncEditor(session: LyricsSession, lines: List<SyncLine>? = null) {
+        val start = lines ?: displayLyrics(session)?.let { l ->
+            l.lines.filter { it.text.isNotBlank() }.map { SyncLine(it.text, it.start.takeIf { l.sync != SyncType.PLAIN && it >= 0 }) }
+        }.orEmpty()
+        screen = Screen.SyncView(SyncSession(session, start))
+    }
+
+    fun closeSyncEditor(sync: SyncSession) {
+        screen = Screen.LyricsView(sync.parent)
+    }
+
+    /** Termina el editor: la letra queda como fuente "Manual" en la pantalla de letra, lista para guardar. */
+    fun finishSync(sync: SyncSession) {
+        val timed = sync.lines.filter { it.start != null && it.text.isNotBlank() }.sortedBy { it.start }
+        if (timed.isEmpty()) return
+        val lrc = timed.joinToString("\n") { "[${LrcWriter.formatTime(it.start!!, millis = true)}]${it.text.trim()}" }
+        val parsed = com.example.lrcfetcher.lyrics.LyricsParsers.parseLrc(lrc)
+        setManual(sync.parent, Lyrics(parsed.lines, SyncType.LINE, ProviderId.MANUAL, "manual"))
+        screen = Screen.LyricsView(sync.parent)
+    }
+
+    private fun setManual(session: LyricsSession, lyrics: Lyrics) {
+        val q = session.query
+        val candidate = SongCandidate(ProviderId.MANUAL, "manual", q.title, q.artist.orEmpty(), q.album, q.durationMs)
+        session.results[ProviderId.MANUAL] = ProviderResult.Found(candidate, lyrics, 1.0)
+        session.romanized.remove(candidate.key)
+        session.selected = ProviderId.MANUAL
+        session.userPicked = true
+        ensureRomanized(session)
     }
 
     /** Cambia entre la letra de la canción y la mejor encontrada por las fuentes. */
@@ -690,6 +805,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val opts = OutputOptions(format, textMode, includeTranslation, 0, includeVoices, millis)
         val order = enabledProviders
         batch = BatchState(running = true, total = targets.size)
+        backup.begin(BackupKind.LYRICS)
         batchJob = viewModelScope.launch {
             var found = 0; var notFound = 0; var failed = 0
             for ((i, track) in targets.withIndex()) {
@@ -702,7 +818,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     val result = withContext(Dispatchers.IO) {
                         runCatching {
                             val lyrics = if (opts.textMode != TextMode.ORIGINAL) Romanizer.romanize(best.lyrics) else best.lyrics
-                            saveLyrics(tree, track, LrcWriter.write(lyrics, opts), target)
+                            val before = lyricsSnapshot(tree, track, target)
+                            saveLyrics(tree, track, LrcWriter.write(lyrics, opts), target).also { saved ->
+                                backup.add(if (before.sidecarCreated) before.copy(sidecarDocId = saved.lrcDocId) else before)
+                            }
                         }
                     }
                     result.onSuccess { found++; replaceTrackQuiet(it) }.onFailure { failed++ }
@@ -710,7 +829,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 batch = batch.copy(done = i + 1, found = found, notFound = notFound, failed = failed)
                 if ((i + 1) % 10 == 0) withContext(Dispatchers.IO) { cache.save(tree, tracks) }
             }
-            withContext(Dispatchers.IO) { cache.save(tree, tracks) }
+            withContext(Dispatchers.IO) { cache.save(tree, tracks); backup.finish() }
+            refreshUndo()
             batch = batch.copy(running = false, current = "")
             message = if (failed > 0) UiText(R.string.msg_batch_done_errors, found, notFound, failed)
             else UiText(R.string.msg_batch_done, found, notFound)
@@ -724,7 +844,171 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun cancelBatch() {
         batchJob?.cancel()
         batch = batch.copy(running = false, current = "")
-        folderUri?.let { tree -> viewModelScope.launch(Dispatchers.IO) { cache.save(tree, tracks) } }
+        folderUri?.let { tree ->
+            viewModelScope.launch(Dispatchers.IO) {
+                cache.save(tree, tracks)
+                backup.finish()
+                refreshUndo()
+            }
+        }
+    }
+
+    // ================================================================= deshacer, convertir, renombrar
+
+
+    /** Último lote que se puede deshacer (tipo, fecha y nº de canciones). */
+    var lastBackup by mutableStateOf<BatchBackupData?>(null)
+        private set
+
+    private fun refreshUndo() {
+        viewModelScope.launch { lastBackup = withContext(Dispatchers.IO) { backup.load() } }
+    }
+
+    /** Estado de la letra (incrustada y .lrc) antes de escribir con [target]. Bloqueante. */
+    private fun lyricsSnapshot(tree: Uri, track: Track, target: SaveTarget): BackupEntry {
+        val canEmbed = track.ext in LyricsWriter.EMBEDDABLE
+        val touchesEmbed = canEmbed && target != SaveTarget.LRC
+        val touchesSidecar = target != SaveTarget.EMBED || !canEmbed
+        return BackupEntry(
+            uri = track.uri,
+            lyrics = if (touchesEmbed) writer.readEmbeddedLyrics(track).orEmpty() else null,
+            sidecarDocId = if (touchesSidecar) track.lrcDocId else null,
+            sidecarText = if (touchesSidecar) track.lrcDocId?.let { writer.readSidecar(tree, it) } else null,
+            sidecarCreated = touchesSidecar && track.lrcDocId == null,
+        )
+    }
+
+    /**
+     * Convierte letras en lote: incrustada → .lrc ([toLrc]) o .lrc → incrustada. No borra el
+     * origen, así la canción queda con las dos.
+     */
+    fun startConvert(toLrc: Boolean, onlySelected: Boolean) {
+        val tree = folderUri ?: return
+        if (batch.running) return
+        val pool = if (onlySelected) tracks.filter { it.uri in selected } else tracks
+        val targets = pool.filter { if (toLrc) it.hasEmbeddedLyrics else it.lrcDocId != null && it.ext in LyricsWriter.EMBEDDABLE }
+        if (onlySelected) clearSelection()
+        if (targets.isEmpty()) { message = UiText(R.string.msg_no_pending); return }
+        batch = BatchState(kind = BatchKind.CONVERT, running = true, total = targets.size)
+        backup.begin(BackupKind.CONVERT)
+        batchJob = viewModelScope.launch {
+            var done = 0; var skipped = 0; var failed = 0
+            for ((i, track) in targets.withIndex()) {
+                if (!isActive) break
+                batch = batch.copy(current = track.title, done = i)
+                val r = withContext(Dispatchers.IO) {
+                    runCatching {
+                        val text = if (toLrc) writer.readEmbeddedLyrics(track) else track.lrcDocId?.let { writer.readSidecar(tree, it) }
+                        if (text == null) return@runCatching null
+                        val target = if (toLrc) SaveTarget.LRC else SaveTarget.EMBED
+                        val before = lyricsSnapshot(tree, track, target)
+                        saveLyrics(tree, track, text, target).also { saved ->
+                            backup.add(if (before.sidecarCreated) before.copy(sidecarDocId = saved.lrcDocId) else before)
+                        }
+                    }
+                }
+                r.onSuccess { t -> if (t == null) skipped++ else { done++; replaceTrackQuiet(t) } }.onFailure { failed++ }
+                batch = batch.copy(done = i + 1, found = done, notFound = skipped, failed = failed)
+            }
+            withContext(Dispatchers.IO) { cache.save(tree, tracks); backup.finish() }
+            refreshUndo()
+            batch = batch.copy(running = false, current = "")
+        }
+    }
+
+    /**
+     * Renombra los archivos según sus etiquetas (y su .lrc). Sólo canciones con título y artista
+     * en las etiquetas; al terminar se vuelve a listar la carpeta.
+     */
+    fun startRename(pattern: RenamePattern, onlySelected: Boolean) {
+        val tree = folderUri ?: return
+        if (batch.running) return
+        val pool = if (onlySelected) tracks.filter { it.uri in selected } else tracks
+        if (onlySelected) clearSelection()
+        val targets = pool.filter { it.hasTaggedIdentity }
+        if (targets.isEmpty()) { message = UiText(R.string.msg_no_pending); return }
+        batch = BatchState(kind = BatchKind.RENAME, running = true, total = targets.size)
+        backup.begin(BackupKind.RENAME)
+        batchJob = viewModelScope.launch {
+            var done = 0; var skipped = 0; var failed = 0
+            val used = HashSet<String>()
+            for ((i, track) in targets.withIndex()) {
+                if (!isActive) break
+                batch = batch.copy(current = track.fileName, done = i)
+                val base = pattern.format(track.tags)
+                val ext = track.fileName.substringAfterLast('.', track.ext)
+                val newName = "$base.$ext"
+                val key = track.parentDocId + "/" + newName.lowercase()
+                if (base.isBlank() || newName == track.fileName || !used.add(key)) {
+                    skipped++
+                } else {
+                    val r = withContext(Dispatchers.IO) {
+                        runCatching {
+                            val newUri = writer.rename(track.androidUri, newName) ?: error("rename")
+                            var entry = BackupEntry(uri = track.uri, oldName = track.fileName, newUri = newUri.toString())
+                            track.lrcDocId?.let { lrc ->
+                                val lrcUri = DocumentsContract.buildDocumentUriUsingTree(tree, lrc)
+                                runCatching { writer.rename(lrcUri, "$base.lrc") }.getOrNull()?.let {
+                                    entry = entry.copy(oldLrcName = track.baseName + ".lrc", newLrcUri = it.toString())
+                                }
+                            }
+                            backup.add(entry)
+                        }
+                    }
+                    r.onSuccess { done++ }.onFailure { failed++ }
+                }
+                batch = batch.copy(done = i + 1, found = done, notFound = skipped, failed = failed)
+            }
+            withContext(Dispatchers.IO) { backup.finish() }
+            refreshUndo()
+            batch = batch.copy(running = false, current = "")
+            // Los documentos renombrados cambian de Uri: se vuelve a listar la carpeta.
+            if (done > 0) rescan()
+        }
+    }
+
+    /** Devuelve las canciones del último lote a como estaban antes. */
+    fun undoLastBatch() {
+        val tree = folderUri ?: return
+        if (batch.running) return
+        val data = lastBackup ?: return
+        batch = BatchState(kind = BatchKind.UNDO, running = true, total = data.entries.size)
+        batchJob = viewModelScope.launch {
+            var done = 0; var failed = 0
+            for ((i, e) in data.entries.withIndex()) {
+                if (!isActive) break
+                val track = tracks.firstOrNull { it.uri == e.uri }
+                batch = batch.copy(current = track?.title ?: e.oldName.orEmpty(), done = i)
+                val r = withContext(Dispatchers.IO) {
+                    runCatching {
+                        when (data.kind) {
+                            BackupKind.RENAME -> {
+                                val newUri = e.newUri ?: error("no uri")
+                                writer.rename(Uri.parse(newUri), e.oldName ?: error("no name"))
+                                if (e.newLrcUri != null && e.oldLrcName != null) runCatching { writer.rename(Uri.parse(e.newLrcUri), e.oldLrcName) }
+                                Unit
+                            }
+                            BackupKind.METADATA -> { writer.apply(track ?: error("missing"), TagChanges(tags = e.tags ?: error("no tags"))); Unit }
+                            BackupKind.LYRICS, BackupKind.CONVERT -> {
+                                val t = track ?: error("missing")
+                                e.lyrics?.let { writer.apply(t, TagChanges(lyrics = it)) }
+                                val lrc = e.sidecarDocId
+                                if (lrc != null && e.sidecarCreated) writer.deleteSidecar(tree, lrc)
+                                else if (lrc != null && e.sidecarText != null) writer.writeSidecar(tree, t.copy(lrcDocId = lrc), e.sidecarText)
+                                Unit
+                            }
+                        }
+                    }
+                }
+                r.onSuccess { done++ }.onFailure { failed++ }
+                batch = batch.copy(done = i + 1, found = done, failed = failed)
+            }
+            withContext(Dispatchers.IO) { backup.clear() }
+            lastBackup = null
+            batch = batch.copy(running = false, current = "")
+            // Tamaños, fechas, nombres y .lrc cambiaron: se vuelve a leer lo necesario.
+            rescan()
+        }
     }
 
     fun dismissBatchSummary() {
@@ -850,6 +1134,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         batch = BatchState(kind = BatchKind.METADATA, running = true, total = targets.size)
+        backup.begin(BackupKind.METADATA)
         batchJob = viewModelScope.launch {
             var updated = 0; var review = 0; var failed = 0
             for ((i, track) in targets.withIndex()) {
@@ -876,6 +1161,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         val r = withContext(Dispatchers.IO) {
                             runCatching {
                                 writer.apply(track, TagChanges(tags = newTags))
+                                backup.add(BackupEntry(uri = track.uri, tags = track.tags))
                                 rereadTrack(track).copy(needsReview = false)
                             }
                         }
@@ -885,7 +1171,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 batch = batch.copy(done = i + 1, found = updated, review = review, failed = failed)
                 if ((i + 1) % 10 == 0) withContext(Dispatchers.IO) { cache.save(tree, tracks) }
             }
-            withContext(Dispatchers.IO) { cache.save(tree, tracks) }
+            withContext(Dispatchers.IO) { cache.save(tree, tracks); backup.finish() }
+            refreshUndo()
             batch = batch.copy(running = false, current = "")
             message = UiText(R.string.msg_meta_batch_done, updated, review)
         }
