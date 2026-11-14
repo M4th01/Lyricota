@@ -175,7 +175,7 @@ class ScreenshotTest {
         val parsed = LyricsParsers.parseLrc("[00:01.00]A line that was already in the file\n[00:04.00]Second invented line\n[00:08.00]Third one")
         val local = Lyrics(parsed.lines, parsed.sync, ProviderId.LOCAL, "u2")
         session.results[ProviderId.LOCAL] = ProviderResult.Found(SongCandidate(ProviderId.LOCAL, "u2", "Walking Home", "The Examples"), local, 1.0)
-        session.results[ProviderId.APPLE_MUSIC] = ProviderResult.Found(cand, lyrics, 1.0)
+        session.results[ProviderId.LRC_RED] = ProviderResult.Found(cand, lyrics.copy(source = ProviderId.LRC_RED), 1.0)
         session.results[ProviderId.LRCLIB] = ProviderResult.NotFound
         session.selected = ProviderId.LOCAL
         compose.setContent { LyricotaTheme(true) { LyricsScreen(vm, session, SnackbarHostState()) } }
@@ -208,14 +208,27 @@ class ScreenshotTest {
     }
 
     @Test
+    fun karaokeMode() {
+        val vm = vm()
+        val (_, lyrics) = appleLyrics()
+        val player = com.example.lrcfetcher.ui.PreviewPlayer(ApplicationProvider.getApplicationContext(), Uri.parse("content://test/a.flac"))
+        compose.setContent {
+            LyricotaTheme(true) {
+                com.example.lrcfetcher.ui.KaraokeView(lyrics, player, "静かな夜", "Lyricota Band", 0, TextMode.BOTH, true, 1f) {}
+            }
+        }
+        compose.onRoot().captureRoboImage("build/outputs/roborazzi/karaoke.png")
+    }
+
+    @Test
     fun lyricsBoth() {
         val vm = vm()
         val (cand, lyrics) = appleLyrics()
         val session = LyricsSession(vm.tracks[0], TrackQuery("静かな夜", "Lyricota Band"), null)
-        session.results[ProviderId.APPLE_MUSIC] = ProviderResult.Found(cand, lyrics, 1.0)
+        session.results[ProviderId.LRC_RED] = ProviderResult.Found(cand, lyrics.copy(source = ProviderId.LRC_RED), 1.0)
         session.results[ProviderId.QQ_MUSIC] = ProviderResult.Loading
         session.results[ProviderId.LRCLIB] = ProviderResult.NotFound
-        session.selected = ProviderId.APPLE_MUSIC
+        session.selected = ProviderId.LRC_RED
         vm.setTextModeFor(null, TextMode.BOTH)
         vm.setTranslation(true)
         compose.setContent { LyricotaTheme(false) { LyricsScreen(vm, session, SnackbarHostState()) } }

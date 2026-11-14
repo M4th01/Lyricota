@@ -201,7 +201,8 @@ private fun PermissionsPage(folderChosen: Boolean, onPickFolder: () -> Unit) {
             body = R.string.perm_notif_body,
             granted = notifGranted,
             // Denegado dos veces: Android ya no muestra el diálogo, se abren sus ajustes.
-            action = if (notifAsked && !notifGranted) R.string.perm_open_settings else R.string.perm_notif_action,
+            // Antes de Android 13 no existe el diálogo de permiso: solo se pueden abrir los ajustes.
+            action = if ((notifAsked && !notifGranted) || Build.VERSION.SDK_INT < 33) R.string.perm_open_settings else R.string.perm_notif_action,
             onAction = {
                 if (Build.VERSION.SDK_INT >= 33 && !notifAsked) {
                     notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -212,7 +213,6 @@ private fun PermissionsPage(folderChosen: Boolean, onPickFolder: () -> Unit) {
                                 .putExtra(AndroidSettings.EXTRA_APP_PACKAGE, context.packageName),
                         )
                     }
-                    notifAsked = false
                 }
             },
         )

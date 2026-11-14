@@ -92,7 +92,7 @@
 
     <string name="settings_providers">プロバイダー</string>
     <string name="settings_providers_hint">優先順位。単語ごとの歌詞が常に優先されます。</string>
-    <string name="provider_word">単語ごと</string>
+    <string name="provider_word">曲に対応していれば単語ごと</string>
     <string name="provider_line">行ごと</string>
     <string name="provider_voices">単語ごと · デュエットとバックコーラス</string>
     <string name="move_up">上へ</string>
@@ -107,6 +107,13 @@
     <string name="setting_voices_hint">Apple Music 風のプレーヤー（AMLL、Lyricify など）が対応しています。他のプレーヤーでは通常のテキストとして表示されるか、無視されます。</string>
     <string name="setting_millis">ミリ秒のタイムスタンプ（.000）</string>
     <string name="setting_millis_hint">プレーヤーがミリ秒を読めない場合は、オフにして従来の LRC（.00）にしてください。</string>
+    <string name="settings_lyrics_size">歌詞の文字サイズ</string>
+    <string name="size_small">小</string>
+    <string name="size_normal">標準</string>
+    <string name="size_large">大</string>
+    <string name="size_xlarge">特大</string>
+    <string name="karaoke_mode">カラオケモード</string>
+    <string name="karaoke_close">カラオケモードを閉じる</string>
     <string name="settings_theme">テーマ</string>
     <string name="theme_system">システムに合わせる</string>
     <string name="theme_light">ライト</string>
@@ -117,7 +124,7 @@
     <string name="batch_title">歌詞を一括検索</string>
     <string name="batch_body">各曲に最適な歌詞を探し、現在の形式とローマ字設定で保存します（%1$s）。</string>
     <string name="batch_only_missing">歌詞のない曲のみ（%1$d）</string>
-    <string name="batch_settings">形式：%1$s · テキスト：%2$s</string>
+    <string name="batch_settings">形式：最大 %1$s · テキスト：%2$s</string>
     <string name="batch_with_translation">%1$s · 翻訳付き</string>
     <string name="start">開始</string>
 
@@ -125,7 +132,7 @@
     <string name="about_version">バージョン %1$s</string>
     <string name="about_description">Lyricota は複数の公開ソースから同期歌詞を探し、端末内の音楽ファイルに保存します。</string>
     <string name="about_sources">歌詞のソース</string>
-    <string name="about_src_apple">単語ごとの同期、デュエット、バックコーラス、公式のローマ字と翻訳。歌詞はコミュニティサービス lyrics.paxsenix.org 経由、検索は公開の iTunes Search API を使用。</string>
+    <string name="about_src_lrcred">単語ごとの同期、歌手とバックコーラス付き。無料の公開 API。この提供元の歌詞には lrc.red へのリンク付きでクレジットを表示します。</string>
     <string name="about_src_amll">コミュニティ製の単語単位歌詞（デュエット・バックコーラス付き）。投稿者が作成した部分は CC0 1.0、他から取り込んだデータは元の提供者の条件に従います。</string>
     <string name="about_src_qq">単語ごと（QRC）と翻訳。サービスの公開ウェブエンドポイントから取得。</string>
     <string name="about_src_kugou">単語ごと（KRC）。サービスの公開ウェブエンドポイントから取得。</string>
@@ -133,7 +140,7 @@
     <string name="about_src_synclrc">カラオケ形式と行同期の歌詞を提供する無料 API。</string>
     <string name="about_src_lrclib">コミュニティが管理するオープンな行同期歌詞データベース。</string>
     <string name="about_legal">法的通知</string>
-    <string name="about_legal_body">Lyricota は歌詞をホスト・保存・再配布しません。あなたが求めたときだけ、個人的な利用のためにその場でダウンロードします。歌詞は著作権で保護されており、作詞者と出版社に帰属します。\n\nLyricota は独立したプロジェクトであり、Apple、Tencent（QQ Music）、Kugou、NetEase、Deezer、MetaBrainz Foundation（MusicBrainz、Cover Art Archive）、LRCLIB、SyncLRC、paxsenix、AMLL とは提携・承認・後援の関係にありません。すべての商標とサービス名はそれぞれの所有者に帰属します。各サービスの利用はそれぞれの利用規約に従います。</string>
+    <string name="about_legal_body">Lyricota は歌詞をホスト・保存・再配布しません。あなたが求めたときだけ、個人的な利用のためにその場でダウンロードします。歌詞は著作権で保護されており、作詞者と出版社に帰属します。\n\nLyricota は独立したプロジェクトであり、Apple、Tencent（QQ Music）、Kugou、NetEase、Deezer、MetaBrainz Foundation（MusicBrainz、Cover Art Archive）、LRCLIB、SyncLRC、lrc.red、AMLL とは提携・承認・後援の関係にありません。すべての商標とサービス名はそれぞれの所有者に帰属します。各サービスの利用はそれぞれの利用規約に従います。</string>
     <string name="about_libraries">オープンソースソフトウェア</string>
     <string name="about_lib_androidx">ユーザーインターフェースとプラットフォームのライブラリ。</string>
     <string name="about_lib_kotlin">言語とコルーチン。</string>

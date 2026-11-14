@@ -223,6 +223,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         private set
 
     fun changeSection(s: Section) {
+        if (s == section) return
+        // La selección y el texto buscado son de la pestaña anterior: no se arrastran a la otra.
+        clearSelection()
+        if ((s == Section.ONLINE) != (section == Section.ONLINE)) query = ""
         section = s
         if (s == Section.ONLINE) searchOnline()
     }
@@ -325,6 +329,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val present = HashSet<String>(ready.size + pending.size).apply { ready.forEach { add(it.uri) }; pending.forEach { add(it.uri) } }
             val removed = cached.keys.count { it !in present }
             tracks = ready + pending
+            if (selected.isNotEmpty()) selected = selected.filter { it in present }.toSet()
 
             if (pending.isNotEmpty()) {
                 scan = scan.copy(readingTags = true, done = 0, total = pending.size)
@@ -536,8 +541,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
             val others = providers.filter { initial == null || it != initial.provider }
-            LyricsRepository.findAll(session.query, others) { id, r ->
+            val asked = session.query
+            LyricsRepository.findAll(asked, others) { id, r ->
                 viewModelScope.launch(Dispatchers.Main) {
+                    // Resultado de una búsqueda anterior (el usuario ya corrigió título o artista).
+                    if (session.query != asked) return@launch
                     session.results[id] = r
                     if (!session.userPicked) session.selected = autoPick(session) ?: session.selected
                     ensureRomanized(session)
@@ -646,7 +654,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private fun setManual(session: LyricsSession, lyrics: Lyrics) {
         val q = session.query
         val candidate = SongCandidate(ProviderId.MANUAL, "manual", q.title, q.artist.orEmpty(), q.album, q.durationMs)
-        session.results[ProviderId.MANUAL] = ProviderResult.Found(candidate, lyrics, 1.0)
+        session.results[ProviderId.MANUAL] = ProviderResult.Found(candidate, lyrics.withRealSync(), 1.0)
         session.romanized.remove(candidate.key)
         session.selected = ProviderId.MANUAL
         session.userPicked = true
@@ -706,6 +714,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun updateSaveTarget(t: SaveTarget) { saveTarget = t; settings.saveTarget = t }
     fun updateVoices(v: Boolean) { includeVoices = v; settings.includeVoices = v }
     fun updateMillis(v: Boolean) { millis = v; settings.millis = v }
+
+    /** Tamaño del texto de la letra: 0.85 (pequeño), 1.0, 1.2 o 1.4. */
+    var lyricsScale by mutableStateOf(settings.lyricsScale)
+        private set
+
+    fun updateLyricsScale(v: Float) { lyricsScale = v; settings.lyricsScale = v }
 
     fun setProviderEnabled(id: ProviderId, enabled: Boolean) {
         disabledProviders = if (enabled) disabledProviders - id else disabledProviders + id
@@ -1040,7 +1054,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val query = TrackQuery(t.title ?: session.track.title, t.artist ?: session.track.artist, t.album, session.track.durationMs)
         session.searching = true
         session.job = viewModelScope.launch {
-            session.result = runCatching { MetadataRepository.search(query) }.getOrNull()
+            // Una búsqueda cancelada (porque se lanzó otra) no debe escribir su resultado.
+            session.result = runCatching { MetadataRepository.search(query) }
+                .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }.getOrNull()
             session.searching = false
             session.searched = true
         }

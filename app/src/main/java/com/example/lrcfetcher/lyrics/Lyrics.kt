@@ -63,8 +63,16 @@ data class Lyrics(
      * en 00:00). Se trata como texto sin tiempos para no mostrarla ni guardarla como sincronizada.
      */
     fun withRealSync(): Lyrics {
-        if (sync == SyncType.PLAIN || lines.size < 2) return this
-        if (lines.map { it.start }.distinct().size > 1) return this
+        if (sync == SyncType.PLAIN || lines.isEmpty()) return this
+        // "Palabra por palabra" sólo si de verdad hay varias palabras con tiempos distintos en
+        // una parte razonable de las líneas; si no, es letra por línea aunque la fuente diga otra cosa.
+        if (sync == SyncType.WORD) {
+            val sung = lines.filter { it.text.isNotBlank() }
+            val timed = sung.count { l -> l.words.map { it.start }.distinct().size > 1 }
+            if (timed == 0 || timed * 10 < sung.size * 3) return copy(sync = SyncType.LINE).withRealSync()
+        }
+        if (lines.size >= 2 && lines.map { it.start }.distinct().size > 1) return this
+        if (lines.size == 1 && lines[0].start > 0) return this
         return copy(
             sync = SyncType.PLAIN,
             lines = lines.map { l ->

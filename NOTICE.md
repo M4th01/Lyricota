@@ -21,6 +21,8 @@ the app under *About*.
   `QQMusicDecoder-MIT.txt`) and [LDDC](https://github.com/chenmozhijin/LDDC) (GPL-3.0, © chenmozhijin).
   Based on the public-domain DES implementation by Brad Conte.
 - **Kugou KRC** (XOR + zlib) and **NetEase eapi** (AES-128-ECB) are publicly documented formats.
+- **lrc.red**: free public API (https://lrc.red/api). Its terms ask clients to identify themselves in the
+  User-Agent and to credit and link back to lrc.red wherever its data is shown; the lyrics screen does both.
 - **AMLL TTML DB**: lyrics written by its contributors are released under CC0-1.0; data imported from
   other providers keeps its original terms. Lyricota downloads it on demand and does not redistribute it.
 - **MusicBrainz**: core data is CC0; genres/tags are CC BY-NC-SA 3.0. Queried on demand, not redistributed.

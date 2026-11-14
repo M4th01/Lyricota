@@ -19,7 +19,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Undo
@@ -84,14 +87,16 @@ fun SyncScreen(vm: AppViewModel, sync: SyncSession) {
     }
     var confirmExit by remember { mutableStateOf(false) }
     var editText by remember { mutableStateOf(false) }
-    val dirty = sync.lines.any { it.start != null }
+    // Instantánea inicial (texto/tiempo) para saber si hay cambios reales sin guardar.
+    val initial = remember(sync) { sync.lines.map { it.text to it.start } }
+    val dirty = sync.lines.map { it.text to it.start } != initial
     fun exit() { if (dirty) confirmExit = true else vm.closeSyncEditor(sync) }
     BackHandler { exit() }
 
     val pos = player?.positionMs ?: 0L
     val playingIndex = sync.lines.indexOfLast { it.start != null && it.start!! <= pos }
     val listState = rememberLazyListState()
-    LaunchedEffect(sync.cursor) { if (sync.cursor in sync.lines.indices) listState.animateScrollToItem((sync.cursor - 2).coerceAtLeast(0)) }
+    LaunchedEffect(sync.cursor) { if (sync.cursor in sync.lines.indices) listState.animateScrollToItem((sync.cursor - 1).coerceAtLeast(0)) }
 
     Scaffold(
         topBar = {
@@ -159,7 +164,8 @@ fun SyncScreen(vm: AppViewModel, sync: SyncSession) {
                                 if (player != null && !player.started) player.toggle()
                                 if (sync.cursor in sync.lines.indices) {
                                     sync.lines[sync.cursor].start = player?.positionMs ?: 0L
-                                    sync.cursor = sync.lines.indexOfFirst { it.start == null }.let { if (it < 0) sync.lines.size else it }
+                                    // Avanza a la línea siguiente (o al final).
+                                    sync.cursor = (sync.cursor + 1).coerceAtMost(sync.lines.size)
                                 }
                             },
                             enabled = sync.cursor in sync.lines.indices,
@@ -230,23 +236,31 @@ fun SyncScreen(vm: AppViewModel, sync: SyncSession) {
         )
     }
     if (editText) {
-        var text by remember { mutableStateOf(sync.lines.joinToString("\n") { it.text }) }
+        var text by rememberSaveable { mutableStateOf(sync.lines.joinToString("\n") { it.text }) }
         AlertDialog(
             onDismissRequest = { editText = false },
             title = { Text(stringResource(R.string.sync_edit_text)) },
             text = {
-                OutlinedTextField(
-                    value = text, onValueChange = { text = it }, minLines = 6, maxLines = 14,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    OutlinedTextField(
+                        value = text, onValueChange = { text = it }, minLines = 6, maxLines = 14,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             },
             confirmButton = {
                 TextButton(onClick = {
-                    // Se conservan los tiempos de las líneas que siguen en el mismo lugar.
+                    // Una línea conserva su tiempo solo si su texto es idéntico al de una línea vieja aún no usada.
                     val newLines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
                     val old = sync.lines.toList()
+                    val used = BooleanArray(old.size)
+                    val merged = newLines.map { t ->
+                        val j = old.indices.firstOrNull { !used[it] && old[it].text == t }
+                        if (j != null) used[j] = true
+                        SyncLine(t, j?.let { old[it].start })
+                    }
                     sync.lines.clear()
-                    sync.lines.addAll(newLines.mapIndexed { i, t -> SyncLine(t, old.getOrNull(i)?.start) })
+                    sync.lines.addAll(merged)
                     sync.cursor = sync.lines.indexOfFirst { it.start == null }.let { if (it < 0) sync.lines.size else it }
                     editText = false
                 }) { Text(stringResource(R.string.save)) }

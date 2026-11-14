@@ -4,6 +4,7 @@ import com.example.lrcfetcher.lyrics.Lyrics
 import com.example.lrcfetcher.lyrics.LyricsParsers
 import com.example.lrcfetcher.lyrics.LyricsProvider
 import com.example.lrcfetcher.lyrics.Net
+import com.example.lrcfetcher.lyrics.text
 import com.example.lrcfetcher.lyrics.ProviderId
 import com.example.lrcfetcher.lyrics.SongCandidate
 import com.example.lrcfetcher.lyrics.buildLyrics
@@ -51,10 +52,10 @@ object NetEaseProvider : LyricsProvider {
         val json = JSONObject(
             Net.post("https://interface3.music.163.com/eapi/song/lyric/v1", form, "application/x-www-form-urlencoded", headers),
         )
-        val yrc = json.optJSONObject("yrc")?.optString("lyric").orEmpty()
-        val lrc = json.optJSONObject("lrc")?.optString("lyric").orEmpty()
-        val tlyric = json.optJSONObject("tlyric")?.optString("lyric")
-        val ytlrc = json.optJSONObject("ytlrc")?.optString("lyric")
+        val yrc = json.optJSONObject("yrc")?.text("lyric").orEmpty()
+        val lrc = json.optJSONObject("lrc")?.text("lyric").orEmpty()
+        val tlyric = json.optJSONObject("tlyric")?.text("lyric")
+        val ytlrc = json.optJSONObject("ytlrc")?.text("lyric")
 
         val parsed = if (yrc.isNotBlank()) LyricsParsers.parseYrc(yrc).takeIf { it.lines.isNotEmpty() } else null
         val final = parsed ?: LyricsParsers.parseLrc(lrc)

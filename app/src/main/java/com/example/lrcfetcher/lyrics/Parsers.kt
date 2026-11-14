@@ -9,8 +9,9 @@ data class ParsedLyrics(val lines: List<LyricLine>, val sync: SyncType)
 
 object LyricsParsers {
 
-    private val lineTimeTag = Regex("""\[(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?]""")
-    private val wordTimeTag = Regex("""<(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?>""")
+    // La fracción admite punto, dos puntos o coma ([00:01,50] aparece en algunos editores).
+    private val lineTimeTag = Regex("""\[(\d{1,3}):(\d{1,2})(?:[.:,](\d{1,3}))?]""")
+    private val wordTimeTag = Regex("""<(\d{1,3}):(\d{1,2})(?:[.:,](\d{1,3}))?>""")
     private val metaTag = Regex("""^\[([a-zA-Z#]+):(.*)]$""")
     private val bgTag = Regex("""^\[bg:\s*(.*)]$""", RegexOption.IGNORE_CASE)
     private val agentPrefix = Regex("""^(v\d+):\s?""")
@@ -122,8 +123,11 @@ object LyricsParsers {
 
     /** Acepta el XML completo de QQ o sólo el contenido de LyricContent. */
     fun parseQrc(xmlOrContent: String): ParsedLyrics {
-        val content = extractQrcContent(xmlOrContent) ?: return parseLrc(xmlOrContent)
         val lineHead = Regex("""^\[(\d+),(\d+)](.*)$""")
+        // Sin el envoltorio XML, el contenido QRC se reconoce por sus líneas "[inicio,duración]".
+        val content = extractQrcContent(xmlOrContent)
+            ?: xmlOrContent.takeIf { x -> x.lineSequence().any { lineHead.containsMatchIn(it.trim()) } }
+            ?: return parseLrc(xmlOrContent)
         val wordRe = Regex("""(.*?)\((\d+),(\d+)\)""")
         val lines = mutableListOf<LyricLine>()
         for (raw in content.lines()) {

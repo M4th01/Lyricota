@@ -47,3 +47,6 @@ internal object Net {
 }
 
 class HttpException(val code: Int, message: String) : IOException("HTTP $code $message")
+
+/** Texto de un campo JSON; "" si falta o es null (optString devuelve "null" para un null JSON). */
+internal fun org.json.JSONObject.text(key: String): String = if (isNull(key)) "" else optString(key)

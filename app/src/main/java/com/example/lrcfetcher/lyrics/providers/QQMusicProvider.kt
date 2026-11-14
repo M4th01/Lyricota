@@ -4,6 +4,7 @@ import com.example.lrcfetcher.lyrics.Lyrics
 import com.example.lrcfetcher.lyrics.LyricsParsers
 import com.example.lrcfetcher.lyrics.LyricsProvider
 import com.example.lrcfetcher.lyrics.Net
+import com.example.lrcfetcher.lyrics.text
 import com.example.lrcfetcher.lyrics.ProviderId
 import com.example.lrcfetcher.lyrics.SongCandidate
 import com.example.lrcfetcher.lyrics.buildLyrics
@@ -78,11 +79,11 @@ object QQMusicProvider : LyricsProvider {
         val resp = JSONObject(Net.post("https://u.y.qq.com/cgi-bin/musicu.fcg", body.toString(), "application/json", headers))
         val data = resp.optJSONObject("req")?.optJSONObject("data") ?: return null
 
-        val lyricHex = data.optString("lyric")
+        val lyricHex = data.text("lyric")
         if (lyricHex.isBlank()) return null
         val decoded = decode(lyricHex) ?: return null
         val parsed = if (decoded.contains("LyricContent=")) LyricsParsers.parseQrc(decoded) else LyricsParsers.parseLrc(decoded)
-        val trans = data.optString("trans").takeIf { it.isNotBlank() }?.let { decode(it) }
+        val trans = data.text("trans").takeIf { it.isNotBlank() }?.let { decode(it) }
         return buildLyrics(parsed, candidate, translations = LyricsParsers.translationsFromLrc(trans))
     }
 

@@ -15,5 +15,12 @@ object AppInfo {
     /** Contacto que se envía en el User-Agent a MusicBrainz y GitHub, como piden sus APIs. */
     const val CONTACT_URL = REPO_URL
 
-    val USER_AGENT = "Lyricota/${BuildConfig.VERSION_NAME} ( $CONTACT_URL )"
+    /**
+     * Correo de contacto del proyecto. lrc.red y MusicBrainz piden que las apps que usan su API
+     * se identifiquen con enlace y correo; quedará visible en el User-Agent.
+     */
+    const val CONTACT_EMAIL = ""
+
+    val USER_AGENT = "Lyricota/${BuildConfig.VERSION_NAME} ( $CONTACT_URL" +
+        (if (CONTACT_EMAIL.isNotBlank()) "; $CONTACT_EMAIL" else "") + " )"
 }

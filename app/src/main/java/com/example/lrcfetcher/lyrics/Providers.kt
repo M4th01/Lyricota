@@ -1,7 +1,7 @@
 package com.example.lrcfetcher.lyrics
 
 import com.example.lrcfetcher.lyrics.providers.AmllProvider
-import com.example.lrcfetcher.lyrics.providers.AppleMusicProvider
+import com.example.lrcfetcher.lyrics.providers.LrcRedProvider
 import com.example.lrcfetcher.lyrics.providers.KugouProvider
 import com.example.lrcfetcher.lyrics.providers.LrclibProvider
 import com.example.lrcfetcher.lyrics.providers.NetEaseProvider
@@ -13,7 +13,8 @@ import com.example.lrcfetcher.lyrics.providers.SyncLrcProvider
  * [voices] = puede marcar cantantes (v1/v2) y coros de fondo.
  */
 enum class ProviderId(val label: String, val wordSync: Boolean, val voices: Boolean = false) {
-    APPLE_MUSIC("Apple Music", true, voices = true),
+    /** lrc.red: API pública con TTML (palabra/sílaba, cantantes y coros). Pide crédito y enlace. */
+    LRC_RED("lrc.red", true, voices = true),
     AMLL("AMLL TTML DB", true, voices = true),
     QQ_MUSIC("QQ Music", true),
     KUGOU("Kugou", true),
@@ -25,9 +26,15 @@ enum class ProviderId(val label: String, val wordSync: Boolean, val voices: Bool
     LOCAL("In the song", false),
 
     /** Letra pegada, importada o sincronizada a mano por el usuario. */
-    MANUAL("Manual", false);
+    MANUAL("Manual", false),
 
-    val searchable: Boolean get() = this != LOCAL && this != MANUAL
+    /**
+     * Retirado: el servicio comunitario que servía estas letras (lyrics.paxsenix.org) dejó de
+     * estar disponible. Se conserva el valor y su parser para las pruebas.
+     */
+    APPLE_MUSIC("Apple Music", true, voices = true);
+
+    val searchable: Boolean get() = this != LOCAL && this != MANUAL && this != APPLE_MUSIC
 
     companion object {
         val SEARCHABLE: List<ProviderId> get() = entries.filter { it.searchable }
@@ -66,7 +73,7 @@ interface LyricsProvider {
     companion object {
         val all: Map<ProviderId, LyricsProvider> by lazy {
             listOf(
-                AppleMusicProvider, AmllProvider, QQMusicProvider, KugouProvider,
+                LrcRedProvider, AmllProvider, QQMusicProvider, KugouProvider,
                 NetEaseProvider, SyncLrcProvider, LrclibProvider,
             ).associateBy { it.id }
         }

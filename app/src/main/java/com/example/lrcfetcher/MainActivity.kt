@@ -10,7 +10,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
@@ -148,8 +150,9 @@ private fun AppContent(vm: AppViewModel, onLanguage: (AppLanguage) -> Unit) {
 
     LaunchedEffect(vm.message) {
         val m = vm.message ?: return@LaunchedEffect
-        vm.message = null
+        // Mostrar primero y limpiar después: limpiar antes cancelaba esta corrutina y el aviso no se veía.
         snackbar.showSnackbar(m.resolve(context))
+        if (vm.message === m) vm.message = null
     }
 
     // Aviso de actualización (como mucho cada 12 h), después del tutorial.
@@ -176,7 +179,15 @@ private fun AppContent(vm: AppViewModel, onLanguage: (AppLanguage) -> Unit) {
 
     AnimatedContent(
         targetState = vm.screen,
-        transitionSpec = { fadeIn() togetherWith fadeOut() },
+        transitionSpec = {
+            // Deslizamiento suave + fundido: hacia el detalle entra por la derecha; al volver, por la izquierda.
+            val toDetail = targetState != Screen.Library
+            if (toDetail) {
+                (slideInHorizontally(tween(220)) { it / 8 } + fadeIn(tween(220))) togetherWith fadeOut(tween(220))
+            } else {
+                (slideInHorizontally(tween(220)) { -it / 8 } + fadeIn(tween(220))) togetherWith fadeOut(tween(220))
+            }
+        },
         label = "screen",
     ) { screen ->
         when (screen) {

@@ -118,7 +118,7 @@ object MetadataRepository {
         val title = c.tags.title ?: return false
         val titleOk = Matching.normalize(query.title) == Matching.normalize(title) ||
             Matching.similarity(Matching.cleanTitle(query.title), Matching.cleanTitle(title)) >= 0.92 &&
-            Matching.similarity(query.title, title) >= 0.8
+            Matching.similarity(query.title, title) >= 0.7
         if (!titleOk) return false
         val artists = c.tags.artists + listOfNotNull(c.tags.artist)
         val artistOk = artists.any { a ->

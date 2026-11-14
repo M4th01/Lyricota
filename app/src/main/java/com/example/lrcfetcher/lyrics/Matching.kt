@@ -20,7 +20,7 @@ data class TrackQuery(
 object Matching {
 
     private val bracketed = Regex("""[(\[（【「『][^)\]）】」』]*[)\]）】」』]""")
-    private val featRe = Regex("""(?i)\s+(feat\.?|ft\.?|featuring|with)\s+.*$""")
+    private val featRe = Regex("""(?i)\s+(feat\.?|ft\.?|featuring)\s+.*$""")
     private val noiseRe = Regex(
         """(?i)\b(official\s*(music\s*)?(video|audio|mv)?|lyrics?|lyric video|hd|hq|remaster(ed)?(\s*\d{4})?|mv|audio|explicit|clean)\b""",
     )
@@ -36,7 +36,8 @@ object Matching {
             Normalizer.normalize(nfkc, Normalizer.Form.NFD).replace(latinMarks, ""),
             Normalizer.Form.NFC,
         )
-        return noMarks.replace(Regex("""[^\p{L}\p{N}]+"""), " ").trim()
+        // \p{M}: las vocales de escrituras como la devanagari o la tailandesa son marcas.
+        return noMarks.replace(Regex("""[^\p{L}\p{M}\p{N}]+"""), " ").trim()
     }
 
     /** Título "limpio": sin (feat…), [Remaster], "- Live", número de pista, etc. */
@@ -63,7 +64,8 @@ object Matching {
         val compactY = y.replace(" ", "")
         if (compactX == compactY) return 0.98
         val contain = if (compactX.contains(compactY) || compactY.contains(compactX)) {
-            0.75 + 0.2 * min(compactX.length, compactY.length).toDouble() / max(compactX.length, compactY.length)
+            // "Run" dentro de "Runaway" no es la misma canción: pesa cuánto del título cubre.
+            0.6 + 0.35 * min(compactX.length, compactY.length).toDouble() / max(compactX.length, compactY.length)
         } else 0.0
         val lev = 1.0 - levenshtein(compactX, compactY).toDouble() / max(compactX.length, compactY.length)
         val tokensX = x.split(' ').toSet()
@@ -95,10 +97,22 @@ object Matching {
             else -> t
         }
         if (d == 0.0) s *= 0.6
+        // Sin parecido en el título no es la canción, por mucho que coincidan artista y duración.
+        if (t < 0.45) s = min(s, 0.5)
+        // Otra versión (en vivo, remix, instrumental…) sólo de un lado: se prefiere la que coincide.
+        if (versionOf(query.title) != versionOf(title)) s *= 0.88
         // Mismo título pero otro artista: casi seguro otra canción (aunque la duración coincida).
         if (a != null && a < 0.35) s *= 0.7
         return s
     }
+
+    private val versionRe = Regex(
+        """(?i)\b(live|en vivo|ao vivo|acoustic|ac[uú]stic[oa]|instrumental|karaoke|remix|demo|cover|sped up|slowed|nightcore|a cappella|acapella)\b""",
+    )
+
+    /** Palabras de versión que aparecen en el título (ordenadas), para no mezclar versiones. */
+    private fun versionOf(title: String): Set<String> =
+        versionRe.findAll(title).map { it.value.lowercase() }.toSet()
 
     /**
      * Compara nombres escritos en alfabetos distintos (米津玄師 ↔ Kenshi Yonezu, ヨアソビ ↔ YOASOBI)

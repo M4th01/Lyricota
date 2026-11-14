@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,15 +52,15 @@ enum class FeedbackType(@StringRes val label: Int, val template: String, val fie
 @Composable
 fun FeedbackDialog(onDismiss: () -> Unit) {
     val context = LocalContext.current
-    var type by remember { mutableStateOf(FeedbackType.BUG) }
-    var text by remember { mutableStateOf("") }
-    var includeDevice by remember { mutableStateOf(true) }
+    var type by rememberSaveable { mutableStateOf(FeedbackType.BUG) }
+    var text by rememberSaveable { mutableStateOf("") }
+    var includeDevice by rememberSaveable { mutableStateOf(true) }
     val device = remember { deviceInfo() }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.feedback_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     FeedbackType.entries.forEach { t ->
                         FilterChip(selected = type == t, onClick = { type = t }, label = { Text(stringResource(t.label)) })
@@ -120,11 +121,13 @@ private fun enc(s: String) = URLEncoder.encode(s, "UTF-8").replace("+", "%20")
 
 /** Página "nueva incidencia" de GitHub con la plantilla y los campos ya rellenos. */
 internal fun feedbackUrl(type: FeedbackType, text: String, device: String?): String {
-    val title = "[${type.tag}] " + text.lineSequence().first().take(70)
+    val clean = text.trim()
+    // El título usa la primera línea con contenido; el cuerpo se acota para no pasarse del largo de la URL.
+    val title = "[${type.tag}] " + (clean.lineSequence().firstOrNull { it.isNotBlank() }?.trim().orEmpty()).take(70)
     val params = buildList {
         add("template=" + enc(type.template))
         add("title=" + enc(title))
-        add(type.field + "=" + enc(text))
+        add(type.field + "=" + enc(clean.take(3000)))
         if (device != null) add("device=" + enc(device))
     }
     return "${AppInfo.REPO_URL}/issues/new?" + params.joinToString("&")

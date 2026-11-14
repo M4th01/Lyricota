@@ -4,6 +4,7 @@ import com.example.lrcfetcher.lyrics.Lyrics
 import com.example.lrcfetcher.lyrics.LyricsParsers
 import com.example.lrcfetcher.lyrics.LyricsProvider
 import com.example.lrcfetcher.lyrics.Net
+import com.example.lrcfetcher.lyrics.text
 import com.example.lrcfetcher.lyrics.ProviderId
 import com.example.lrcfetcher.lyrics.SongCandidate
 import com.example.lrcfetcher.lyrics.TrackQuery
@@ -51,7 +52,7 @@ object KugouProvider : LyricsProvider {
         val key = candidate.extra["accesskey"] ?: return null
         val url = "https://lyrics.kugou.com/download?ver=1&client=pc&id=${Net.enc(candidate.id)}" +
             "&accesskey=${Net.enc(key)}&fmt=krc&charset=utf8"
-        val content = JSONObject(Net.get(url)).optString("content")
+        val content = JSONObject(Net.get(url)).text("content")
         if (content.isBlank()) return null
         val krc = decryptKrc(Base64.getDecoder().decode(content))
         val result = LyricsParsers.parseKrc(krc)
@@ -62,6 +63,7 @@ object KugouProvider : LyricsProvider {
     }
 
     internal fun decryptKrc(bytes: ByteArray): String {
+        if (bytes.size <= 4) return ""
         val data = ByteArray(bytes.size - 4) { i -> (bytes[i + 4].toInt() xor KRC_KEY[i % KRC_KEY.size]).toByte() }
         val inflater = Inflater()
         inflater.setInput(data)
@@ -70,7 +72,7 @@ object KugouProvider : LyricsProvider {
         try {
             while (!inflater.finished()) {
                 val n = inflater.inflate(buf)
-                if (n == 0 && inflater.needsInput()) break
+                if (n == 0 && (inflater.needsInput() || inflater.needsDictionary())) break
                 out.write(buf, 0, n)
             }
         } finally {

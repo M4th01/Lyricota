@@ -123,6 +123,11 @@ class Settings(context: Context) {
         get() = prefs.getString("skipped_version", null)
         set(v) = prefs.edit().putString("skipped_version", v).apply()
 
+    /** Tamaño del texto de la letra (1.0 = normal). */
+    var lyricsScale: Float
+        get() = prefs.getFloat("lyrics_scale", 1f)
+        set(v) = prefs.edit().putFloat("lyrics_scale", v).apply()
+
     var sort: SortMode
         get() = enumOr(prefs.getString("sort", null), SortMode.TITLE)
         set(v) = prefs.edit().putString("sort", v.name).apply()

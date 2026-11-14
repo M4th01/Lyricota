@@ -1,0 +1,6 @@
+• Nueva fuente de letras: lrc.red (palabra por palabra, cantantes y coros)
+• Modo karaoke a pantalla completa, barra de progreso y tamaño de letra ajustable
+• Las letras ya no se etiquetan como «Palabra» cuando solo son por línea o texto
+• Mejor emparejamiento: ya no aparece la letra de otra canción del mismo artista
+• Animaciones más suaves y muchos arreglos de interfaz
+• Se retiró la fuente Apple Music (su servicio dejó de estar disponible)

@@ -1,7 +1,9 @@
 package com.example.lrcfetcher.lyrics
 
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
@@ -26,9 +28,18 @@ object LyricsRepository {
 
     suspend fun fetch(candidate: SongCandidate): Lyrics? {
         lyricsCache[candidate.key]?.let { return it }
-        val result = withContext(Dispatchers.IO) { LyricsProvider.of(candidate.provider).fetch(candidate) }?.withRealSync()
+        val result = withContext(Dispatchers.IO) { LyricsProvider.of(candidate.provider).fetch(candidate) }
+            ?.withRealSync()?.takeUnless { isPlaceholder(it) }
         if (result != null) lyricsCache[candidate.key] = result
         return result
+    }
+
+    private val placeholderRe = Regex("""(?i)纯音乐|純音樂|暂无歌词|暫無歌詞|此歌曲为没有填词|instrumental|no lyrics|歌词不支持滚动""")
+
+    /** "Música instrumental, disfrútala" y avisos parecidos que algunas fuentes devuelven como letra. */
+    internal fun isPlaceholder(l: Lyrics): Boolean {
+        val real = l.lines.filter { it.text.isNotBlank() }
+        return real.size <= 2 && real.any { placeholderRe.containsMatchIn(it.text) }
     }
 
     /** Busca en un proveedor y descarga la letra del mejor candidato que supere el umbral. */
@@ -41,14 +52,23 @@ object LyricsRepository {
                     .filter { it.second >= MIN_SCORE }
                     .sortedByDescending { it.second }
                     .take(3)
+                var lastError: Throwable? = null
                 for ((candidate, score) in ranked) {
-                    val lyrics = runCatching { fetch(candidate) }.getOrNull()
+                    ensureActive()
+                    val lyrics = runCatching { fetch(candidate) }
+                        .onFailure { if (it is CancellationException) throw it; lastError = it }
+                        .getOrNull()
                     if (lyrics != null) return@runCatching ProviderResult.Found(candidate, lyrics, score)
                 }
-                ProviderResult.NotFound
-            }.getOrElse { ProviderResult.Error(it.message ?: it.javaClass.simpleName) }
+                // Si todas las descargas fallaron por red, es un error, no "sin letra".
+                lastError?.let { ProviderResult.Error(it.message ?: it.javaClass.simpleName) } ?: ProviderResult.NotFound
+            }.getOrElse {
+                // La cancelación (tiempo agotado o búsqueda nueva) no es un resultado: se propaga.
+                if (it is CancellationException) throw it
+                ProviderResult.Error(it.message ?: it.javaClass.simpleName)
+            }
         }
-        outcome ?: ProviderResult.Error("Tiempo de espera agotado")
+        outcome ?: ProviderResult.Error("timeout")
     }
 
     /**

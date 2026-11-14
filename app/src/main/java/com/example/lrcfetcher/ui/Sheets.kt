@@ -1,6 +1,7 @@
 package com.example.lrcfetcher.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +29,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -78,6 +81,23 @@ fun SettingsSheet(vm: AppViewModel, onLanguage: (AppLanguage) -> Unit, onDismiss
             Section(stringResource(R.string.settings_lrc))
             SwitchRow(stringResource(R.string.setting_voices), stringResource(R.string.setting_voices_hint), vm.includeVoices, vm::updateVoices)
             SwitchRow(stringResource(R.string.setting_millis), stringResource(R.string.setting_millis_hint), vm.millis, vm::updateMillis)
+
+            // Tamaño del texto de la letra.
+            Section(stringResource(R.string.settings_lyrics_size))
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(
+                    0.85f to R.string.size_small,
+                    1.0f to R.string.size_normal,
+                    1.2f to R.string.size_large,
+                    1.4f to R.string.size_xlarge,
+                ).forEach { (scale, label) ->
+                    FilterChip(
+                        selected = kotlin.math.abs(vm.lyricsScale - scale) < 0.01f,
+                        onClick = { vm.updateLyricsScale(scale) },
+                        label = { Text(stringResource(label)) },
+                    )
+                }
+            }
 
             Section(stringResource(R.string.settings_theme))
             listOf(
@@ -181,7 +201,7 @@ fun BatchDialog(vm: AppViewModel, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.batch_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(stringResource(R.string.batch_body, vm.saveTarget.label()), style = MaterialTheme.typography.bodyMedium)
                 Row(Modifier.clickable { onlyMissing = !onlyMissing }, verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = onlyMissing, onCheckedChange = { onlyMissing = it })
@@ -214,7 +234,7 @@ fun MetadataBatchDialog(vm: AppViewModel, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.meta_batch_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(stringResource(R.string.meta_batch_body), style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(4.dp))
                 if (selectedCount > 0) RadioRow(stringResource(R.string.scope_selected, selectedCount), scope == MetaScope.SELECTED) { scope = MetaScope.SELECTED }
@@ -250,7 +270,7 @@ fun ConvertDialog(vm: AppViewModel, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.convert_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(stringResource(R.string.convert_body), style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(4.dp))
                 RadioRow(stringResource(R.string.convert_to_lrc, embedded), toLrc) { toLrc = true }
@@ -318,7 +338,12 @@ fun RenameDialog(vm: AppViewModel, onDismiss: () -> Unit) {
 /** Confirmación para deshacer el último lote. */
 @Composable
 fun UndoDialog(vm: AppViewModel, onDismiss: () -> Unit) {
-    val data = vm.lastBackup ?: run { onDismiss(); return }
+    val data = vm.lastBackup
+    if (data == null) {
+        // No se puede cerrar durante la composición: se hace en un efecto.
+        LaunchedEffect(Unit) { onDismiss() }
+        return
+    }
     val kind = stringResource(
         when (data.kind) {
             com.example.lrcfetcher.library.BackupKind.LYRICS -> R.string.notif_lyrics_title

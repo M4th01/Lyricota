@@ -7,7 +7,13 @@ import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -76,6 +82,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -124,11 +133,23 @@ fun LyricsScreen(vm: AppViewModel, session: LyricsSession, snackbar: SnackbarHos
     }
     val lyrics = vm.displayLyrics(session)
     val q = session.query
+    var karaokeOpen by rememberSaveable { mutableStateOf(false) }
+    val canKaraoke = player != null && lyrics != null && lyrics.sync != SyncType.PLAIN
+    val openKaraoke: () -> Unit = {
+        if (player != null && !player.started) player.toggle()
+        karaokeOpen = true
+    }
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
         if (uri != null) vm.exportTo(uri, session)
     }
 
-    Scaffold(
+    if (karaokeOpen && player != null && lyrics != null && canKaraoke) {
+        KaraokeView(
+            lyrics = lyrics, player = player, title = q.title, artist = q.artist,
+            offsetMs = session.offsetMs, mode = vm.textMode, voices = vm.includeVoices,
+            scale = vm.lyricsScale, onClose = { karaokeOpen = false },
+        )
+    } else Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
@@ -162,6 +183,12 @@ fun LyricsScreen(vm: AppViewModel, session: LyricsSession, snackbar: SnackbarHos
                                     onClick = { menuOpen = false; vm.openMetadata(session.track) },
                                 )
                             }
+                            if (canKaraoke) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.karaoke_mode)) },
+                                    onClick = { menuOpen = false; openKaraoke() },
+                                )
+                            }
                             DropdownMenuItem(text = { Text(stringResource(R.string.adjust_offset)) }, onClick = { offsetOpen = true; menuOpen = false })
                             DropdownMenuItem(text = { Text(stringResource(R.string.import_lyrics)) }, onClick = { importOpen = true; menuOpen = false })
                             if (session.track != null) {
@@ -187,6 +214,13 @@ fun LyricsScreen(vm: AppViewModel, session: LyricsSession, snackbar: SnackbarHos
             )
         },
         bottomBar = {
+            Column {
+            // Progreso del reproductor encima de la barra de acciones.
+            if (player != null && player.started) {
+                Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
+                    Box(Modifier.padding(horizontal = 16.dp)) { PlayerProgress(player, session.track?.durationMs) }
+                }
+            }
             ActionBar(
                 enabled = lyrics != null,
                 canSave = session.track != null,
@@ -202,7 +236,10 @@ fun LyricsScreen(vm: AppViewModel, session: LyricsSession, snackbar: SnackbarHos
                 onExport = { exportLauncher.launch(listOfNotNull(q.artist, q.title).joinToString(" - ") + ".lrc") },
                 playing = player?.playing,
                 onPlay = { player?.toggle(); if (player?.failed == true) vm.message = UiText(R.string.msg_play_error) },
+                preparing = player?.preparing == true,
+                onKaraoke = if (canKaraoke) openKaraoke else null,
             )
+            }
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
@@ -227,7 +264,11 @@ fun LyricsScreen(vm: AppViewModel, session: LyricsSession, snackbar: SnackbarHos
                         else if (it.lyrics.source == ProviderId.MANUAL) stringResource(R.string.source_manual_long)
                         else "${it.lyrics.source.label} · ${it.candidate.artist} — ${it.candidate.title}"
                     },
+                    // lrc.red exige crédito con enlace a la canción.
+                    sourceUrl = found?.takeIf { it.lyrics.source == ProviderId.LRC_RED }
+                        ?.let { "https://lrc.red/s/" + it.lyrics.sourceId },
                     positionMs = player?.takeIf { it.started }?.positionMs?.minus(session.offsetMs),
+                    scale = vm.lyricsScale,
                     following = player?.playing == true,
                     onLineClick = player?.let { p -> { line -> p.seekTo(line.start + session.offsetMs) } },
                 )
@@ -267,10 +308,11 @@ private fun LocalToggle(local: ProviderResult.Found, showingLocal: Boolean, onCh
             selected = !showingLocal,
             onClick = { onChange(false) },
             shape = SegmentedButtonDefaults.itemShape(1, 2),
-        ) { Text(stringResource(R.string.lyrics_from_sources), maxLines = 1) }
+        ) { Text(stringResource(R.string.lyrics_from_sources), maxLines = 1, overflow = TextOverflow.Ellipsis) }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ProviderChips(vm: AppViewModel, session: LyricsSession) {
     LazyRow(
@@ -283,6 +325,7 @@ private fun ProviderChips(vm: AppViewModel, session: LyricsSession) {
             val r = session.results[id]
             val found = r as? ProviderResult.Found
             FilterChip(
+                modifier = Modifier.animateItemPlacement(),
                 selected = session.selected == id,
                 enabled = found != null,
                 onClick = { vm.selectProvider(session, id) },
@@ -295,6 +338,7 @@ private fun ProviderChips(vm: AppViewModel, session: LyricsSession) {
                                 r.lyrics.sync.label(),
                             )
                             ProviderResult.Loading -> id.label
+                            is ProviderResult.Error -> "${id.label} · !"
                             else -> "${id.label} · —"
                         },
                     )
@@ -314,9 +358,11 @@ private fun OptionChips(vm: AppViewModel, session: LyricsSession, lyrics: Lyrics
         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        // Formato que realmente se guardará: nunca mejor que el que tiene la letra.
+        val effective = if (lyrics != null && lyrics.sync.rank < vm.format.rank) lyrics.sync else vm.format
         ChoiceChip(
-            label = stringResource(R.string.format_label, vm.format.label()),
-            options = SyncType.entries.map { it.label() to it },
+            label = stringResource(R.string.format_label, effective.label()),
+            options = SyncType.entries.filter { lyrics == null || it.rank <= lyrics.sync.rank }.map { it.label() to it },
             onPick = vm::updateFormat,
         )
         if (needsRoman) {
@@ -396,7 +442,17 @@ private fun LyricsBody(
     positionMs: Long?,
     following: Boolean,
     onLineClick: ((LyricLine) -> Unit)?,
+    sourceUrl: String? = null,
+    scale: Float = 1f,
 ) {
+    val uriHandler = LocalUriHandler.current
+    // Tamaño de letra elegido en Ajustes: escala tamaño y alto de línea.
+    fun TextStyle.scaled() = copy(fontSize = fontSize * scale, lineHeight = lineHeight * scale)
+    val lineStyle = LyricLineStyle.scaled()
+    val bodyStyle = MaterialTheme.typography.bodyMedium.scaled()
+    val smallStyle = MaterialTheme.typography.bodySmall.scaled()
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val primary = MaterialTheme.colorScheme.primary
     val synced = lyrics.sync != SyncType.PLAIN
     val listState = rememberLazyListState()
     val current = if (positionMs == null || !synced) -1 else lyrics.lines.indexOfLast { it.start <= positionMs }
@@ -418,10 +474,12 @@ private fun LyricsBody(
                     if (live && lyrics.sync == SyncType.WORD && words != null && hasWordTiming(words)) karaoke(words, positionMs!!, sung, pending)
                     else null
                 val mainKaraoke = karaokeOf(if (showRomanMain) line.romanWords else line.words, main)
+                val lineAlpha by animateFloatAsState(if (dim) 0.45f else 1f, tween(200), label = "lineAlpha")
+                val lineColor by animateColorAsState(if (index == current) primary else onSurface, tween(200), label = "lineColor")
                 val rowModifier = Modifier.fillMaxWidth()
                     .then(if (onLineClick != null && synced) Modifier.clickable { onLineClick(line) } else Modifier)
                     .padding(vertical = 6.dp)
-                    .alpha(if (dim) 0.45f else 1f)
+                    .alpha(lineAlpha)
                 Row(rowModifier) {
                     if (synced) {
                         Text(
@@ -436,19 +494,19 @@ private fun LyricsBody(
                     val align = if (secondVoice) TextAlign.End else TextAlign.Start
                     Column(Modifier.weight(1f), horizontalAlignment = if (secondVoice) Alignment.End else Alignment.Start) {
                         if (mainKaraoke != null) {
-                            Text(mainKaraoke, style = LyricLineStyle, textAlign = align)
+                            Text(mainKaraoke, style = lineStyle, textAlign = align)
                         } else {
                             Text(
                                 if (main.isBlank()) "♪" else main,
-                                style = LyricLineStyle,
+                                style = lineStyle,
                                 textAlign = align,
-                                color = if (index == current) MaterialTheme.colorScheme.primary else Color.Unspecified,
+                                color = lineColor,
                             )
                         }
                         if (mode == TextMode.BOTH && roman != null) {
                             val romanKaraoke = karaokeOf(line.romanWords, roman)
-                            if (romanKaraoke != null) Text(romanKaraoke, style = MaterialTheme.typography.bodyMedium, textAlign = align)
-                            else Text(roman, style = MaterialTheme.typography.bodyMedium, textAlign = align, color = MaterialTheme.colorScheme.primary)
+                            if (romanKaraoke != null) Text(romanKaraoke, style = bodyStyle, textAlign = align)
+                            else Text(roman, style = bodyStyle, textAlign = align, color = MaterialTheme.colorScheme.primary)
                         }
                         val bg = if (voices) line.backgroundText else null
                         if (bg != null) {
@@ -459,21 +517,21 @@ private fun LyricsBody(
                             if (bgKaraoke != null) {
                                 Text(
                                     buildAnnotatedString { append("("); append(bgKaraoke); append(")") },
-                                    style = MaterialTheme.typography.bodyMedium, textAlign = align,
+                                    style = bodyStyle, textAlign = align,
                                 )
                             } else {
                                 Text(
-                                    "($shown)", style = MaterialTheme.typography.bodyMedium, textAlign = align,
+                                    "($shown)", style = bodyStyle, textAlign = align,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                             if (mode == TextMode.BOTH && bgRoman != null) {
-                                Text("($bgRoman)", style = MaterialTheme.typography.bodySmall, textAlign = align, color = MaterialTheme.colorScheme.primary)
+                                Text("($bgRoman)", style = smallStyle, textAlign = align, color = MaterialTheme.colorScheme.primary)
                             }
                         }
                         if (translation && !line.translation.isNullOrBlank()) {
                             Text(
-                                line.translation, style = MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Italic),
+                                line.translation, style = bodyStyle.copy(fontStyle = FontStyle.Italic),
                                 textAlign = align,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -484,7 +542,17 @@ private fun LyricsBody(
             if (source != null) {
                 item {
                     Spacer(Modifier.height(16.dp))
-                    Text(source, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                    if (sourceUrl != null) {
+                        Text(
+                            source,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            textDecoration = TextDecoration.Underline,
+                            modifier = Modifier.clickable { runCatching { uriHandler.openUri(sourceUrl) } },
+                        )
+                    } else {
+                        Text(source, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                    }
                 }
             }
         }
@@ -492,7 +560,7 @@ private fun LyricsBody(
 }
 
 /** Las palabras traen tiempos propios (no todas en el mismo instante). */
-private fun hasWordTiming(words: List<LyricWord>): Boolean =
+internal fun hasWordTiming(words: List<LyricWord>): Boolean =
     words.size > 1 && words.any { it.end > it.start } || words.size == 1 && words[0].end > words[0].start
 
 /**
@@ -536,23 +604,33 @@ private fun ActionBar(
     onExport: () -> Unit,
     playing: Boolean?,
     onPlay: () -> Unit,
+    preparing: Boolean = false,
+    onKaraoke: (() -> Unit)? = null,
 ) {
     Surface(color = MaterialTheme.colorScheme.surfaceContainer, tonalElevation = 0.dp) {
         Row(
             Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            OutlinedButton(onClick = onCopy, enabled = enabled) {
-                Icon(Icons.Filled.ContentCopy, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.copy))
-            }
+            // Sólo iconos a la izquierda: así "Guardar" siempre cabe en una línea.
+            IconButton(onClick = onCopy, enabled = enabled) { Icon(Icons.Filled.ContentCopy, contentDescription = stringResource(R.string.copy)) }
             IconButton(onClick = onShare, enabled = enabled) { Icon(Icons.Filled.Share, contentDescription = stringResource(R.string.share)) }
             if (playing != null) {
                 IconButton(onClick = onPlay, enabled = enabled) {
-                    Icon(
-                        if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = stringResource(if (playing) R.string.pause else R.string.play_check),
-                    )
+                    if (preparing) {
+                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(
+                            if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                            contentDescription = stringResource(if (playing) R.string.pause else R.string.play_check),
+                        )
+                    }
+                }
+            }
+            if (onKaraoke != null) {
+                IconButton(onClick = onKaraoke) {
+                    Icon(Icons.Filled.Fullscreen, contentDescription = stringResource(R.string.karaoke_mode))
                 }
             }
             Spacer(Modifier.weight(1f))
@@ -560,7 +638,7 @@ private fun ActionBar(
                 if (saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                 else Icon(Icons.Filled.Save, null, Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
-                Text(if (canSave) saveLabel else stringResource(R.string.export))
+                Text(if (canSave) saveLabel else stringResource(R.string.export), maxLines = 1, softWrap = false)
             }
         }
     }
@@ -598,7 +676,7 @@ private fun share(context: Context, text: String) {
 @Composable
 private fun ImportLyricsDialog(onDismiss: () -> Unit, onImport: (String) -> Unit) {
     val context = LocalContext.current
-    var text by remember { mutableStateOf("") }
+    var text by rememberSaveable { mutableStateOf("") }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) } }
@@ -609,7 +687,7 @@ private fun ImportLyricsDialog(onDismiss: () -> Unit, onImport: (String) -> Unit
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.import_lyrics)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(stringResource(R.string.import_body), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(
                     value = text, onValueChange = { text = it }, minLines = 6, maxLines = 12,

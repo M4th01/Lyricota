@@ -92,7 +92,7 @@
 
     <string name="settings_providers">Proveedores</string>
     <string name="settings_providers_hint">Orden de preferencia. Siempre se prefiere la letra palabra por palabra.</string>
-    <string name="provider_word">Palabra por palabra</string>
+    <string name="provider_word">Palabra por palabra cuando la canción la tiene</string>
     <string name="provider_line">Por línea</string>
     <string name="provider_voices">Palabra por palabra · dúos y coros</string>
     <string name="move_up">Subir</string>
@@ -107,6 +107,13 @@
     <string name="setting_voices_hint">Lo entienden los reproductores estilo Apple Music (AMLL, Lyricify…). Otros muestran esas líneas como texto normal o las ignoran.</string>
     <string name="setting_millis">Marcas de tiempo en milisegundos (.000)</string>
     <string name="setting_millis_hint">Desactívalo para LRC clásico (.00) si tu reproductor no lee milisegundos.</string>
+    <string name="settings_lyrics_size">Tamaño del texto de la letra</string>
+    <string name="size_small">Pequeño</string>
+    <string name="size_normal">Normal</string>
+    <string name="size_large">Grande</string>
+    <string name="size_xlarge">Muy grande</string>
+    <string name="karaoke_mode">Modo karaoke</string>
+    <string name="karaoke_close">Cerrar modo karaoke</string>
     <string name="settings_theme">Tema</string>
     <string name="theme_system">Según el sistema</string>
     <string name="theme_light">Claro</string>
@@ -117,7 +124,7 @@
     <string name="batch_title">Buscar letras en lote</string>
     <string name="batch_body">Se busca la mejor letra de cada canción y se guarda (%1$s), con el formato y la romanización elegidos.</string>
     <string name="batch_only_missing">Sólo las que no tienen letra (%1$d)</string>
-    <string name="batch_settings">Formato: %1$s · Texto: %2$s</string>
+    <string name="batch_settings">Formato: hasta %1$s · Texto: %2$s</string>
     <string name="batch_with_translation">%1$s · con traducción</string>
     <string name="start">Empezar</string>
 
@@ -125,7 +132,7 @@
     <string name="about_version">Versión %1$s</string>
     <string name="about_description">Lyricota busca letras sincronizadas en varias fuentes públicas y las guarda en los archivos de música de tu dispositivo.</string>
     <string name="about_sources">Fuentes de letras</string>
-    <string name="about_src_apple">Palabra por palabra, dúos, coros, romanización y traducción oficiales. Letras a través del servicio comunitario lyrics.paxsenix.org; búsqueda con la API pública de iTunes Search.</string>
+    <string name="about_src_lrcred">Palabra por palabra, con cantantes y coros. API pública y gratuita; la letra de esta fuente se muestra con crédito y enlace a lrc.red.</string>
     <string name="about_src_amll">Letras palabra por palabra hechas por la comunidad, con dúos y coros. Lo escrito por sus colaboradores se publica bajo CC0 1.0; los datos importados mantienen los términos de su proveedor original.</string>
     <string name="about_src_qq">Palabra por palabra (QRC) y traducciones, desde los endpoints web públicos del servicio.</string>
     <string name="about_src_kugou">Palabra por palabra (KRC), desde los endpoints web públicos del servicio.</string>
@@ -133,7 +140,7 @@
     <string name="about_src_synclrc">API gratuita con letras karaoke y sincronizadas por línea.</string>
     <string name="about_src_lrclib">Base de datos abierta y mantenida por la comunidad, sincronizada por línea.</string>
     <string name="about_legal">Aviso legal</string>
-    <string name="about_legal_body">Lyricota no aloja, almacena ni redistribuye letras. Las descarga bajo demanda, sólo cuando tú lo pides y para tu uso personal. Las letras están protegidas por derechos de autor y pertenecen a sus autores y editoriales.\n\nLyricota es un proyecto independiente, sin relación, respaldo ni patrocinio de Apple, Tencent (QQ Music), Kugou, NetEase, Deezer, la MetaBrainz Foundation (MusicBrainz, Cover Art Archive), LRCLIB, SyncLRC, paxsenix ni AMLL. Todas las marcas y nombres de servicios pertenecen a sus respectivos dueños. El uso de cada servicio está sujeto a sus propios términos.</string>
+    <string name="about_legal_body">Lyricota no aloja, almacena ni redistribuye letras. Las descarga bajo demanda, sólo cuando tú lo pides y para tu uso personal. Las letras están protegidas por derechos de autor y pertenecen a sus autores y editoriales.\n\nLyricota es un proyecto independiente, sin relación, respaldo ni patrocinio de Apple, Tencent (QQ Music), Kugou, NetEase, Deezer, la MetaBrainz Foundation (MusicBrainz, Cover Art Archive), LRCLIB, SyncLRC, lrc.red ni AMLL. Todas las marcas y nombres de servicios pertenecen a sus respectivos dueños. El uso de cada servicio está sujeto a sus propios términos.</string>
     <string name="about_libraries">Software de código abierto</string>
     <string name="about_lib_androidx">Interfaz de usuario y librerías de la plataforma.</string>
     <string name="about_lib_kotlin">Lenguaje y corrutinas.</string>

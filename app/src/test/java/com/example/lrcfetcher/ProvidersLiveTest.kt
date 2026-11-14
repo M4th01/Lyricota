@@ -20,7 +20,9 @@ class ProvidersLiveTest {
         TrackQuery("Hype Boy", "NewJeans", durationMs = 179_000),
         TrackQuery("起风了", "买辣椒也用券", durationMs = 325_000),
         TrackQuery("HOPE", "NF", durationMs = 264_000),
-        TrackQuery("INFERNO", "Sub Urban", durationMs = 176_000),
+        TrackQuery("INFERNO", "Sub Urban", durationMs = 133_000),
+        TrackQuery("Bohemian Rhapsody", "Queen", durationMs = 356_000),
+        TrackQuery("Shallow", "Lady Gaga", durationMs = 216_000),
     )
 
     @Test
@@ -28,19 +30,19 @@ class ProvidersLiveTest {
         assumeTrue(System.getProperty("live") == "true" || System.getenv("LIVE") == "true")
         for (q in songs) {
             println("=== ${q.artist} - ${q.title}")
-            val results = LyricsRepository.findAll(q, ProviderId.entries)
-            for (id in ProviderId.entries) {
+            val results = LyricsRepository.findAll(q, ProviderId.SEARCHABLE)
+            for (id in ProviderId.SEARCHABLE) {
                 when (val r = results[id]) {
                     is ProviderResult.Found -> println(
                         "  ${id.label.padEnd(12)} ${r.lyrics.sync.name.padEnd(8)} lines=${r.lyrics.lines.size} " +
-                            "score=${"%.2f".format(r.score)} trans=${r.lyrics.hasTranslation} " +
+                            "wordLines=${r.lyrics.lines.count { l -> l.words.map { it.start }.distinct().size > 1 }} score=${"%.2f".format(r.score)} trans=${r.lyrics.hasTranslation} " +
                             "v2=${r.lyrics.lines.count { it.isSecondaryVoice }} bg=${r.lyrics.lines.count { it.backgroundText != null }} → ${r.candidate.artist} - ${r.candidate.title} " +
                             "| ${r.lyrics.lines.firstOrNull { it.text.isNotBlank() }?.text?.take(40)}",
                     )
                     else -> println("  ${id.label.padEnd(12)} $r")
                 }
             }
-            val best = LyricsRepository.best(results, ProviderId.entries)
+            val best = LyricsRepository.best(results, ProviderId.SEARCHABLE)
             println("  BEST: ${best?.lyrics?.source} ${best?.lyrics?.sync}")
             best?.lyrics?.takeIf { it.hasVoices }?.let { l ->
                 val out = com.example.lrcfetcher.lyrics.LrcWriter.write(l, com.example.lrcfetcher.lyrics.OutputOptions()).lines()

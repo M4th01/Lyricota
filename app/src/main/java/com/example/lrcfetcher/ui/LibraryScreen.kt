@@ -1,6 +1,11 @@
 package com.example.lrcfetcher.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -219,6 +224,7 @@ fun SearchField(value: String, onValueChange: (String) -> Unit, placeholder: Str
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun LibraryList(vm: AppViewModel, onPickFolder: () -> Unit) {
     if (vm.folderUri == null) {
@@ -269,8 +275,16 @@ private fun LibraryList(vm: AppViewModel, onPickFolder: () -> Unit) {
             )
         }
     }
-    BatchBanner(vm)
-    ReviewBanner(vm)
+    AnimatedVisibility(
+        visible = vm.batch.running || vm.batch.total != 0,
+        enter = expandVertically() + fadeIn(),
+        exit = shrinkVertically() + fadeOut(),
+    ) { BatchBanner(vm) }
+    AnimatedVisibility(
+        visible = vm.reviewCount != 0,
+        enter = expandVertically() + fadeIn(),
+        exit = shrinkVertically() + fadeOut(),
+    ) { ReviewBanner(vm) }
 
     if (visible.isEmpty() && !vm.scan.running) {
         EmptyState(
@@ -296,6 +310,7 @@ private fun LibraryList(vm: AppViewModel, onPickFolder: () -> Unit) {
                 selected = track.uri in vm.selected,
                 onClick = onClick,
                 onLongClick = { vm.toggleSelection(track) },
+                modifier = Modifier.animateItemPlacement(),
             )
         }
     }
@@ -331,7 +346,6 @@ private fun SortMenu(vm: AppViewModel) {
 @Composable
 private fun BatchBanner(vm: AppViewModel) {
     val b = vm.batch
-    if (!b.running && b.total == 0) return
     Surface(
         color = MaterialTheme.colorScheme.secondaryContainer,
         shape = RoundedCornerShape(16.dp),
@@ -374,7 +388,6 @@ private fun BatchBanner(vm: AppViewModel) {
 @Composable
 private fun ReviewBanner(vm: AppViewModel) {
     val count = vm.reviewCount
-    if (count == 0) return
     // En el filtro "Por aprobar" se explican los pasos; en el resto, un aviso corto.
     val reviewing = vm.section == Section.METADATA && vm.metaFilter == MetaFilter.REVIEW
     var confirm by remember { mutableStateOf(false) }
@@ -485,9 +498,10 @@ private fun TrackRow(
     selected: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        Modifier.fillMaxWidth()
+        modifier.fillMaxWidth()
             .background(if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f) else Color.Transparent)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 16.dp, vertical = 10.dp),
@@ -582,6 +596,7 @@ private fun MetadataStatus(track: Track) {
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun OnlineResults(vm: AppViewModel) {
     if (vm.onlineLoading) LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 16.dp))
@@ -599,15 +614,15 @@ private fun OnlineResults(vm: AppViewModel) {
             body = stringResource(R.string.online_no_results_body),
         )
         else -> LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
-            items(vm.onlineResults, key = { it.key }) { c -> CandidateRow(c) { vm.openCandidate(c) } }
+            items(vm.onlineResults, key = { it.key }) { c -> CandidateRow(c, Modifier.animateItemPlacement()) { vm.openCandidate(c) } }
         }
     }
 }
 
 @Composable
-private fun CandidateRow(c: SongCandidate, onClick: () -> Unit) {
+private fun CandidateRow(c: SongCandidate, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp),
+        modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {

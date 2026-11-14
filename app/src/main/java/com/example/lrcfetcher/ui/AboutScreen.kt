@@ -65,7 +65,7 @@ private data class Library(
 )
 
 private val sources = listOf(
-    Source("Apple Music", "lyrics.paxsenix.org · itunes.apple.com", R.string.about_src_apple),
+    Source("lrc.red", "lrc.red", R.string.about_src_lrcred),
     Source("AMLL TTML DB", "github.com/amll-dev/amll-ttml-db", R.string.about_src_amll),
     Source("QQ Music", "y.qq.com", R.string.about_src_qq),
     Source("Kugou", "kugou.com", R.string.about_src_kugou),

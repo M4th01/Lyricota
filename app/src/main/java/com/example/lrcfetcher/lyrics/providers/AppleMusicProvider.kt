@@ -6,6 +6,7 @@ import com.example.lrcfetcher.lyrics.Lyrics
 import com.example.lrcfetcher.lyrics.LyricsParsers
 import com.example.lrcfetcher.lyrics.LyricsProvider
 import com.example.lrcfetcher.lyrics.Net
+import com.example.lrcfetcher.lyrics.text
 import com.example.lrcfetcher.lyrics.ProviderId
 import com.example.lrcfetcher.lyrics.SongCandidate
 import com.example.lrcfetcher.lyrics.SyncType
@@ -99,7 +100,7 @@ object AppleMusicProvider : LyricsProvider {
                 officialRomanization = roman.isNotEmpty(),
             )
         } else {
-            val lrc = json.optString("elrc").ifBlank { json.optString("lrc") }.ifBlank { json.optString("plain") }
+            val lrc = json.text("elrc").ifBlank { json.text("lrc") }.ifBlank { json.text("plain") }
             if (lrc.isBlank()) return null
             buildLyrics(LyricsParsers.parseLrc(lrc), candidate, language) ?: return null
         }

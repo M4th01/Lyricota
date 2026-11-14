@@ -100,7 +100,7 @@
     <!-- Settings -->
     <string name="settings_providers">Providers</string>
     <string name="settings_providers_hint">Order of preference. Word-by-word lyrics are always preferred.</string>
-    <string name="provider_word">Word by word</string>
+    <string name="provider_word">Word by word when the song has it</string>
     <string name="provider_line">Line by line</string>
     <string name="provider_voices">Word by word · duets and backing vocals</string>
     <string name="move_up">Move up</string>
@@ -115,6 +115,13 @@
     <string name="setting_voices_hint">Understood by Apple Music-style players (AMLL, Lyricify…). Other players show those lines as plain text or ignore them.</string>
     <string name="setting_millis">Millisecond timestamps (.000)</string>
     <string name="setting_millis_hint">Turn off for classic LRC (.00) if your player doesn\'t read milliseconds.</string>
+    <string name="settings_lyrics_size">Lyrics text size</string>
+    <string name="size_small">Small</string>
+    <string name="size_normal">Normal</string>
+    <string name="size_large">Large</string>
+    <string name="size_xlarge">Extra large</string>
+    <string name="karaoke_mode">Karaoke mode</string>
+    <string name="karaoke_close">Close karaoke mode</string>
     <string name="settings_theme">Theme</string>
     <string name="theme_system">System default</string>
     <string name="theme_light">Light</string>
@@ -126,7 +133,7 @@
     <string name="batch_title">Find lyrics in bulk</string>
     <string name="batch_body">The best lyrics for each song are found and saved (%1$s), using the current format and romanization.</string>
     <string name="batch_only_missing">Only songs without lyrics (%1$d)</string>
-    <string name="batch_settings">Format: %1$s · Text: %2$s</string>
+    <string name="batch_settings">Format: up to %1$s · Text: %2$s</string>
     <string name="batch_with_translation">%1$s · with translation</string>
     <string name="start">Start</string>
 
@@ -135,7 +142,7 @@
     <string name="about_version">Version %1$s</string>
     <string name="about_description">Lyricota finds synced lyrics from several public sources and saves them into the music files on your device.</string>
     <string name="about_sources">Lyrics sources</string>
-    <string name="about_src_apple">Word by word, duets, backing vocals, official romanization and translation. Lyrics through the community service lyrics.paxsenix.org; search through the public iTunes Search API.</string>
+    <string name="about_src_lrcred">Word by word, with singers and backing vocals. Free public API; lyrics from this source are credited with a link to lrc.red.</string>
     <string name="about_src_amll">Community-made word-by-word lyrics with duets and backing vocals. Lyrics written by contributors are released under CC0 1.0; imported data keeps its original provider\'s terms.</string>
     <string name="about_src_qq">Word by word (QRC) and translations, from the service\'s public web endpoints.</string>
     <string name="about_src_kugou">Word by word (KRC), from the service\'s public web endpoints.</string>
@@ -143,7 +150,7 @@
     <string name="about_src_synclrc">Free API with karaoke and line-synced lyrics.</string>
     <string name="about_src_lrclib">Open, community-maintained database of line-synced lyrics.</string>
     <string name="about_legal">Legal notice</string>
-    <string name="about_legal_body">Lyricota does not host, store or redistribute lyrics. It downloads them on demand, only when you ask, and only for your personal use. Lyrics are protected by copyright and belong to their authors and publishers.\n\nLyricota is an independent project, not affiliated with, endorsed or sponsored by Apple, Tencent (QQ Music), Kugou, NetEase, Deezer, the MetaBrainz Foundation (MusicBrainz, Cover Art Archive), LRCLIB, SyncLRC, paxsenix or AMLL. All trademarks and service names belong to their respective owners. Use of each service is subject to its own terms.</string>
+    <string name="about_legal_body">Lyricota does not host, store or redistribute lyrics. It downloads them on demand, only when you ask, and only for your personal use. Lyrics are protected by copyright and belong to their authors and publishers.\n\nLyricota is an independent project, not affiliated with, endorsed or sponsored by Apple, Tencent (QQ Music), Kugou, NetEase, Deezer, the MetaBrainz Foundation (MusicBrainz, Cover Art Archive), LRCLIB, SyncLRC, lrc.red or AMLL. All trademarks and service names belong to their respective owners. Use of each service is subject to its own terms.</string>
     <string name="about_libraries">Open-source software</string>
     <string name="about_lib_androidx">User interface and platform libraries.</string>
     <string name="about_lib_kotlin">Language and coroutines.</string>

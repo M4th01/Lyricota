@@ -36,7 +36,7 @@
 - **Background batches** with a progress notification (percentage) and a notification when they finish.
 - Fast, incremental library scan: only new or changed songs are read again.
 - **Lyrics already in the song**: shows the embedded lyrics (or the `.lrc` next to the file) even when no source finds the song, with a switch to compare them with what the sources found.
-- Built-in player with **letter-by-letter karaoke** highlighting to check the sync and adjust the offset.
+- Built-in player with **letter-by-letter karaoke** highlighting, a seek bar and a full-screen **karaoke mode**; adjustable lyrics text size.
 - **Sync by hand**: paste or import lyrics (`.lrc` / `.txt`) and tap as each line starts while the song plays. Also useful to fix a line that is off.
 - **Tools**: convert between embedded lyrics and `.lrc` files in bulk, rename files from their tags, find duplicates, and **undo the last batch**.
 - **Share with Lyricota** (or *Open with*) from any music player or file manager to jump straight to that song's lyrics.
@@ -74,7 +74,7 @@ Lyricota has no accounts, ads, analytics or trackers.
 
 | Source | Sync | Notes |
 |---|---|---|
-| Apple Music | word, duets, backing vocals | via the community service `lyrics.paxsenix.org`; search with the public iTunes Search API |
+| [lrc.red](https://lrc.red) | word / syllable, singers, backing vocals | free public API; lyrics from this source are credited with a link to lrc.red |
 | [AMLL TTML DB](https://github.com/amll-dev/amll-ttml-db) | word, duets, backing vocals | community database; contributor-written lyrics are CC0-1.0, imported data keeps its original terms |
 | QQ Music | word (QRC) | public web endpoints |
 | Kugou | word (KRC) | public web endpoints |
@@ -120,7 +120,7 @@ Lyricota is free and always will be. If it's useful to you, you can buy me a cof
 ## Legal
 
 - **Lyrics are not included in this repository or in the app.** The app downloads them on demand, at the user's request, for personal use. Lyrics are copyrighted by their authors and publishers. Test fixtures and screenshots in this repository contain only invented text.
-- Lyricota is an independent project and is **not affiliated with, endorsed or sponsored by** Apple, Tencent (QQ Music), Kugou, NetEase, Deezer, the MetaBrainz Foundation (MusicBrainz, Cover Art Archive), LRCLIB, SyncLRC, paxsenix or AMLL. All trademarks belong to their owners. Use of each service is subject to its own terms of service; you are responsible for complying with them.
+- Lyricota is an independent project and is **not affiliated with, endorsed or sponsored by** Apple, Tencent (QQ Music), Kugou, NetEase, Deezer, the MetaBrainz Foundation (MusicBrainz, Cover Art Archive), lrc.red, LRCLIB, SyncLRC or AMLL. All trademarks belong to their owners. Use of each service is subject to its own terms of service; you are responsible for complying with them.
 - Third-party software and its licenses are listed in [NOTICE.md](NOTICE.md) and in the app under *About*.
 
 ## License

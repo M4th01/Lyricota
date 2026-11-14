@@ -26,34 +26,60 @@ object TtmlParser {
         }
         val agentMap = agentIds.mapIndexed { i, id -> id to "v${i + 1}" }.toMap()
 
+        // Estilo Apple / lrc.red: las traducciones van en la cabecera, por clave de línea
+        // (<translation><text for="L1">…</text></translation>).
+        val headTranslations = HashMap<String, String>()
+        (doc.getElementsByTagName("translation").item(0) as? Element)?.getElementsByTagName("text")?.let { nl ->
+            for (i in 0 until nl.length) {
+                val t = nl.item(i) as? Element ?: continue
+                val text = t.textContent?.let(::squash).orEmpty()
+                if (text.isNotEmpty()) headTranslations[t.getAttribute("for")] = text
+            }
+        }
+
         val ps = doc.getElementsByTagName("p")
         val lines = mutableListOf<LyricLine>()
+        val untimed = mutableListOf<String>()
         var anyWordTiming = false
         for (i in 0 until ps.length) {
             val p = ps.item(i) as Element
-            val start = parseTime(p.getAttribute("begin")) ?: continue
-            val end = parseTime(p.getAttribute("end")) ?: start
+            val start = parseTime(p.getAttribute("begin"))
+            if (start == null) {
+                // Letra sin sincronizar (timing="None"): sólo texto.
+                p.textContent?.let(::squash)?.takeIf { it.isNotEmpty() }?.let { untimed += it }
+                continue
+            }
+            val end = parseTime(p.getAttribute("end"))
+                ?: parseTime(p.getAttribute("dur"))?.let { start + it }
+                ?: start
             val acc = Acc()
             collect(p, acc, background = false)
             var words = acc.words
             if (words.isEmpty()) {
-                val text = acc.looseText.toString().trim()
+                val text = squash(acc.looseText.toString())
                 if (text.isEmpty()) continue
                 words = mutableListOf(LyricWord(start, end, text))
             } else {
                 anyWordTiming = true
             }
+            val key = p.getAttribute("itunes:key").ifBlank { p.getAttribute("lrc:key") }
             lines += LyricLine(
                 start = start,
                 end = end,
                 words = words,
-                translation = acc.translation,
+                translation = acc.translation ?: headTranslations[key],
                 agent = agentMap[p.getAttribute("ttm:agent")] ?: p.getAttribute("ttm:agent").ifBlank { null },
                 background = stripParens(acc.bg).takeIf { it.isNotEmpty() },
             )
         }
+        if (lines.isEmpty() && untimed.isNotEmpty()) {
+            return ParsedLyrics(untimed.map { LyricLine.plain(-1, -1, it) }, SyncType.PLAIN)
+        }
         return ParsedLyrics(lines.sortedBy { it.start }, if (anyWordTiming) SyncType.WORD else SyncType.LINE)
     }
+
+    /** Un TTML indentado trae saltos de línea y sangría dentro del texto: se dejan en un espacio. */
+    private fun squash(s: String): String = s.replace(Regex("""\s+"""), " ").trim()
 
     private class Acc {
         val words = mutableListOf<LyricWord>()
@@ -92,8 +118,9 @@ object TtmlParser {
                             if (hasSpans || b == null) {
                                 collect(e, acc, background)
                             } else {
-                                val text = e.textContent ?: ""
-                                if (text.isNotEmpty()) target += LyricWord(b, parseTime(e.getAttribute("end")) ?: b, text)
+                                // Saltos de línea o sangría dentro de la palabra romperían el LRC.
+                                val text = (e.textContent ?: "").replace(Regex("""[\r\n\t]+\s*"""), " ")
+                                if (text.isNotBlank()) target += LyricWord(b, parseTime(e.getAttribute("end")) ?: b, text)
                             }
                         }
                     }

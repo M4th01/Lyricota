@@ -1,0 +1,6 @@
+• New lyrics source: lrc.red (word by word, singers and backing vocals)
+• Full-screen karaoke mode, seek bar and adjustable lyrics text size
+• Lyrics are no longer labelled "Word" when they are only line-synced or plain text
+• Better song matching: no more lyrics from a different song by the same artist
+• Smoother animations and many interface fixes
+• Removed the Apple Music source (its service is no longer available)

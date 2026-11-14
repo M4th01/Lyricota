@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -28,6 +29,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SwapVert
@@ -256,7 +258,7 @@ private fun Fields(session: MetadataSession) {
     fun update(block: (MetaFields) -> MetaFields) { session.fields = block(session.fields) }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Field(stringResource(R.string.field_title), f.title) { v -> update { it.copy(title = v) } }
-        TextButton(onClick = { update { it.copy(title = it.artists.substringBefore(';').trim(), artists = it.title) } }) {
+        TextButton(onClick = { update { it.copy(title = it.artists, artists = it.title) } }) {
             Icon(Icons.Filled.SwapVert, null, Modifier.size(18.dp))
             Spacer(Modifier.width(6.dp))
             Text(stringResource(R.string.meta_swap))
@@ -356,7 +358,7 @@ private fun CoverPickerDialog(options: List<CoverOption>, searching: Boolean, on
                     columns = GridCells.Fixed(2),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.height(360.dp),
+                    modifier = Modifier.heightIn(max = 360.dp),
                 ) {
                     items(options, key = { it.url }) { o ->
                         Column(Modifier.clickable { onPick(o) }) {
@@ -389,16 +391,27 @@ private fun decode(bytes: ByteArray, maxSide: Int): ImageBitmap? = runCatching {
 
 @Composable
 private fun RemoteImage(url: String, modifier: Modifier) {
+    // Tres estados: cargando, error (la descarga devolvió null) y listo.
+    var failed by remember(url) { mutableStateOf(false) }
     val image by produceState<ImageBitmap?>(thumbCache.get(url), url) {
         if (value == null) {
-            value = withContext(Dispatchers.IO) {
+            val loaded = withContext(Dispatchers.IO) {
                 MetadataRepository.downloadImage(url)?.let { decode(it, 300) }
-            }?.also { thumbCache.put(url, it) }
+            }
+            if (loaded != null) {
+                thumbCache.put(url, loaded)
+                value = loaded
+            } else {
+                failed = true
+            }
         }
     }
     Box(modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh), contentAlignment = Alignment.Center) {
         val img = image
-        if (img != null) Image(img, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-        else CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+        when {
+            img != null -> Image(img, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            failed -> Icon(Icons.Filled.BrokenImage, null, tint = MaterialTheme.colorScheme.outline)
+            else -> CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+        }
     }
 }
